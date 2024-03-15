@@ -1,4 +1,4 @@
-from src.gamemodes.Mode import Mode
+from gamemodes.Mode import Mode
 
 class FFA(Mode):
     def __init__(self):

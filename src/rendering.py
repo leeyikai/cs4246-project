@@ -5,6 +5,7 @@ from __future__ import division
 import os
 import six
 import sys
+import OpenGL.GL
 
 if "Apple" in sys.version:
     if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
