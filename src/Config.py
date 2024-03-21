@@ -61,7 +61,7 @@ class Config:
         self.virusMinAmount= 50 # Minimum number of viruses on the map.
         self.virusMaxAmount= 100 # Maximum number of viruses on the map. If self number is reached then ejected cells will pass through viruses.
         self.motherCellMaxMass= 0 # Maximum amount of mass a mothercell is allowed to have (0 for no limit)
-        self.virusVelocity= 780 # Velocity of moving viruses (speed and distance)
+        self.virusVelocity= 100 # Velocity of moving viruses (speed and distance)
         self.virusMaxCells= 16 # Maximum cells a player can have from viruses.
 
         # EJECTED MASS

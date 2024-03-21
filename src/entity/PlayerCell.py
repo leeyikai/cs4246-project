@@ -15,7 +15,7 @@ class PlayerCell(Cell):
         if dist == 0:
             return 0
         speed = 2.2 * math.pow(self.radius, -0.439)
-        speed *= 40 * self.gameServer.config.playerSpeed
+        speed *= 10 * self.gameServer.config.playerSpeed
         return min(dist, speed) / dist
 
     def onAdd(self, gameServer):
