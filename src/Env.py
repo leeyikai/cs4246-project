@@ -28,7 +28,9 @@ class AgarEnv(gym.Env):
         self.killed_reward_eps = 10
 
     def step(self, actions):
+        print(self.agents)
         for action, agent in zip(actions, self.agents):
+            print(self.agents)
             agent.step(action)
         for bot in self.bots:
             bot.step()

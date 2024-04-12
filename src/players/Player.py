@@ -37,6 +37,7 @@ class Player:
             return
 
         # action in format [0] mouse x, [1 mouse y, [2] key space bool, [3] key w bool, [4] no key bool
+        print(action)
         assert action[0] >= -1 and action[0] <= 1 and action[1] >= -1 and action[1] <= 1
         self.mouse = self.centerPos.add(Vec2(action[0] * self.gameServer.config.serverViewBaseX, action[1] * self.gameServer.config.serverViewBaseY), 1)
         # assert np.sum(action[2:]) == 1
