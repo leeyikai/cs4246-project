@@ -46,15 +46,17 @@ for i in range (n_games):
 
         action = agent.choose_action(observation)
         print("Action = " + str(action))
-        action1 = [0.5, 0.5, 0]
-        observation_, reward, done, truncated, info = env.step(action1)
+        action1 = [[0.5, 0.5, 0]]
+        observation_, reward, done, info = env.step(action1)
         score += reward
-        agent.store_transition(observation, action, reward, 
-                                    observation_, done)
+        items = observation.get_item()
+        items_ = observation_.get_item()
+        agent.store_transition(items, action, reward, 
+                                    items_, done)
         agent.learn()
         observation = observation_
 
-        action[0][2] = 0
+        # action[0][2] = 0
         step+=1
     scores.append(score)
     eps_history.append(agent.epsilon)

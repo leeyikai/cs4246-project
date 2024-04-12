@@ -59,8 +59,8 @@ class Agent:
 
     def store_transition(self, state, action, reward, state_, terminal):
         index = self.mem_cntr % self.mem_size
-        
-        self.state_memory[index] = state[0]
+        print(state)
+        self.state_memory[index] = state
         self.new_state_memory[index] = state_
         self.reward_memory[index] = reward
         self.action_memory[index] = action
@@ -70,7 +70,7 @@ class Agent:
 
     def choose_action(self, observation):
         if np.random.random() > self.epsilon:
-            state = T.tensor([observation]).to(self.Q_eval.device)
+            state = T.tensor([observation.get_item()]).to(self.Q_eval.device)
             actions = self.Q_eval.forward(state)
             action = T.argmax(actions).item()
         else:
