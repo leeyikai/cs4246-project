@@ -3,7 +3,7 @@ import numpy as np
 from Env import AgarEnv
 import time
 
-render = True
+render = False
 num_agents = 1
 num_bots = 19
 gamemode = 0
@@ -43,4 +43,3 @@ for episode in range(1):
         action[0][2] = 0
         step+=1
 env.close()
-
