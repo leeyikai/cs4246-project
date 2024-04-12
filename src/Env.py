@@ -29,9 +29,11 @@ class AgarEnv(gym.Env):
 
     def step(self, actions):
         print(self.agents)
-        for action, agent in zip(actions, self.agents):
-            print(self.agents)
-            agent.step(action)
+        for agent in self.agents:
+            agent.step(actions)
+        # for action, agent in zip(actions, self.agents):
+        #     print(self.agents)
+        #     agent.step(action)
         for bot in self.bots:
             bot.step()
 
