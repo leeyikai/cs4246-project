@@ -8,7 +8,7 @@ num_agents = 1
 num_bots = 19
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
-env.seed(0)
+# env.seed(0)
 
 step = 1
 window = None
