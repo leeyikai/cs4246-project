@@ -29,7 +29,7 @@ for i in range (n_games):
     score = 0
     done = False
     observation = env.reset()
-    split_observation(observation)
+    env.split_observation(observation)
     print("Observation = " + str(observation))
     while not done and step < 100:
         print("Step = " + str(step))
