@@ -33,7 +33,7 @@ class DeepQNetwork(nn.Module):
 
 class Agent:
     def __init__(self, gamma, epsilon, lr, input_dims, batch_size, n_actions,
-                 max_mem_size=100000, eps_end=0.05, eps_dec=5e-5):
+                 max_mem_size=100000, eps_end=0.05, eps_dec=5e-5, load_model=False):
         self.gamma = gamma
         self.epsilon = epsilon
         self.eps_min = eps_end
@@ -45,7 +45,9 @@ class Agent:
         self.mem_cntr = 0
         self.iter_cntr = 0
         self.replace_target = 100
-
+        if load_model:
+            self.Q_eval = T.load('agar_model.pth')
+            print("Model Loaded")
         self.Q_eval = DeepQNetwork(lr, n_actions=n_actions,
                                    input_dims=input_dims,
                                    fc1_dims=256, fc2_dims=256)
@@ -59,7 +61,6 @@ class Agent:
 
     def store_transition(self, state, action, reward, state_, terminal):
         index = self.mem_cntr % self.mem_size
-        print(state)
         self.state_memory[index] = state
         self.new_state_memory[index] = state_
         self.reward_memory[index] = reward
@@ -69,14 +70,16 @@ class Agent:
         self.mem_cntr += 1
 
     def choose_action(self, observation):
+        choice = 0
         if np.random.random() > self.epsilon:
-            state = T.tensor([observation.get_item()]).to(self.Q_eval.device)
+            state = T.tensor(observation).to(self.Q_eval.device)
             actions = self.Q_eval.forward(state)
             action = T.argmax(actions).item()
         else:
             action = np.random.choice(self.action_space)
+            choice = 1
 
-        return action
+        return action, choice
 
     def learn(self):
         if self.mem_cntr < self.batch_size:

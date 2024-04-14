@@ -11,6 +11,8 @@ from modules import AgarObservation
 from players import Player, Bot
 import numpy as np
 import rendering as rendering
+import math
+import time
 
 
 class AgarEnv(gym.Env):
@@ -28,7 +30,6 @@ class AgarEnv(gym.Env):
         self.killed_reward_eps = 10
 
     def step(self, actions):
-        print(self.agents)
         for agent in self.agents:
             agent.step(actions)
         # for action, agent in zip(actions, self.agents):
@@ -36,11 +37,13 @@ class AgarEnv(gym.Env):
         #     agent.step(action)
         for bot in self.bots:
             bot.step()
-
+        done = False
         self.server.Update()
         observations = self.parse_obs(self.agents[0])
+        observations = self.split_observation(observations)
         rewards = np.array([self.parse_reward(agent) for agent in self.agents])
-        done = np.array([False for agent in self.agents])
+        if self.agents[0].isRemoved == True:
+            done = True
         info = {}
         return observations, rewards, done, info
 
@@ -88,14 +91,12 @@ class AgarEnv(gym.Env):
             relative_position_x = (cell.position.x - player.centerPos.x - self.server.config.serverViewBaseX / 2) / self.server.config.serverViewBaseX * 2  # [-1, 1]
             relative_position_y = (cell.position.y - player.centerPos.y - self.server.config.serverViewBaseY / 2) / self.server.config.serverViewBaseY * 2  # [-1, 1]
             canRemerge = onehot(cell.canRemerge, ndim=2)  # len 2 onehot 0 or 1
-            ismycell = onehot(cell.owner == player, ndim=2)  # len 2 onehot 0 or 1
-            print("Player Features: " + str([boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]))
-            features_player = np.array([[boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]])
-            features_player = np.concatenate([features_player, canRemerge, ismycell], axis=1)
-            print("Player Features: " + str(features_player))
+            ismycell = onehot(cell.owner == player, ndim=2)# len 2 onehot 0 or 1
+            canRemerge = max(canRemerge[0])
+            ismycell = max(ismycell[0])
+            features_player = np.array([[boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y, canRemerge, ismycell]])
+
             return cell.cellType, features_player
-            # [boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y], [features_player, canRemerge, ismycell]
-            # [[ 0.        ,  0.        ,  0.07905694, -1.15129255, -1.11654023, -0.57541008, -1.51689859, -2.13911381,  0.        ,  0.        ,0.        ,  0.        ]]
         elif cell.cellType == 1:
             # food features
             radius = (cell.radius - (self.server.config.foodMaxRadius + self.server.config.foodMinRadius) / 2) / (self.server.config.foodMaxRadius - self.server.config.foodMinRadius) * 2  # fixme
@@ -255,19 +256,112 @@ class AgarEnv(gym.Env):
             self.viewer.close()
             self.viewer = None
     
-    def split_observation(observation):
+    def print_cell_data(self, curr_player):
+        print("Boost X = " + str(curr_player[0]))
+        print("Boost Y = " + str(curr_player[1]))
+        print("Radius = " + str(curr_player[2]))
+        print("Log Radius = " + str(curr_player[3]))
+        print("Position X = " + str(curr_player[4]))
+        print("Position Y = " + str(curr_player[5]))
+        print("Relative Position X = " + str(curr_player[6]))
+        print("Relative Position Y = " + str(curr_player[7]))
+        print("Can Remerge = " + str(curr_player[8]))
+        print("Is My Cell = " + str(curr_player[9]))
+        print("")
+
+    def print_food_data(self, curr_food):
+        print("Radius = " + str(curr_food[0]))
+        print("Log Radius = " + str(curr_food[1]))
+        print("Position X = " + str(curr_food[2]))
+        print("Position Y = " + str(curr_food[3]))
+        print("Relative Position X = " + str(curr_food[4]))
+        print("Relative Position Y = " + str(curr_food[5]))
+        print("")
+
+    def print_virus_data(self, curr_virus):
+        print("Boost X = " + str(curr_virus[0]))
+        print("Boost Y = " + str(curr_virus[1]))
+        print("Radius = " + str(curr_virus[2]))
+        print("Log Radius = " + str(curr_virus[3]))
+        print("Position X = " + str(curr_virus[4]))
+        print("Position Y = " + str(curr_virus[5]))
+        print("Relative Position X = " + str(curr_virus[6]))
+        print("Relative Position Y = " + str(curr_virus[7]))
+        print("")
+
+    def split_observation(self, observation):
+        # Returns only the smallest cell that is not your own cell
+        # Returns the number of food cells and the closest one to you
         player = observation['player']
         food = observation['food']
         virus = observation['virus']
         ejected = observation['ejected']
-        print("Player = " + str(player))
-        print("Food = " + str(food))
-        print("Virus = " + str(virus))
-        print("Ejected = " + str(ejected))
+        curr_player_coords = self.get_current_player(player)
+        count_cells, cell_coordinate_x, cell_coordinate_y, size = self.get_closest_cell(player, curr_player_coords)
+        food_coordinate_x, food_coordinate_y = self.get_closest_food(food, curr_player_coords)
+        virus_coordinate_x, virus_coordinate_y = self.get_closest_virus(virus, curr_player_coords)
+        return count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y
+        
+    def get_current_player(self, players):
+        for player in players:
+            player = player[0]
+            if int(player[9]) == 1:
+                print(player[4], player[5])
+                #return absolute coordinates
+                return (player[4], player[5])
+            
+    def get_closest_cell(self, players, curr_player_coords):
+        closest_distance = math.inf
+        size = 0
+        count_cells = 0
+        coordinates_x = 0
+        coordinates_y = 0
+        if players[0] is not None:
+            for cell in players[0]:
+                if cell[9] == 0:
+                    count_cells += 1
+                    distance = np.sqrt((cell[4] - curr_player_coords[0]) ** 2 + (cell[5] - curr_player_coords[1])** 2)
+                    if distance < closest_distance:
+                        coordinates_x = cell[4]
+                        coordinates_y = cell[5]
+                        closest_distance = distance
+                        size = cell[2]
+            return count_cells, coordinates_x,coordinates_y, size
+    
+    def get_closest_food(self, foods, curr_player_coords):
+        closest_food = None
+        closest_distance = math.inf
+        count_food = 0
+        coordinates_x = 0
+        coordinates_y = 0
+        if len(foods) > 0:
+            for food in foods:
+                distance = np.sqrt((food[2] - curr_player_coords[0]) ** 2 + (food[3] - curr_player_coords[1]) ** 2)
+                count_food += 1
+                if distance < closest_distance:
+                    coordinates_x = food[2]
+                    coordinates_y = food[3]
+                    closest_distance = distance
+            return coordinates_x,coordinates_y
+        else:
+            return 0, 0
+    def get_closest_virus(self, viruses, curr_player_coords):
+        closest_distance = math.inf
+        count_virus = 0
+        coordinates_x = 0
+        coordinates_y = 0
 
-        return player, food, virus, ejected
-
-
+        if viruses is not None:
+            for virus in viruses:
+                distance = np.sqrt((virus[4] - curr_player_coords[0]) ** 2 + (virus[5] - curr_player_coords[1]) ** 2)
+                count_virus += 1
+                if distance < closest_distance:
+                    coordinates_x = virus[4]
+                    coordinates_y = virus[5]
+                    closest_distance = distance
+            return coordinates_x,coordinates_y
+        else:
+            return 0,0
 def onehot(d, ndim):
     v = np.zeros((1, ndim))
     v[0, d] = 1

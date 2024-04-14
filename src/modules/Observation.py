@@ -24,13 +24,12 @@ class AgarObservation():
         if self.tensor_obs is None:
             return item
         else:
-            for player_obs in self.tensor_obs:
+            for player_obs in self.obs:
                 player = player_obs['player']
                 food = player_obs['food']
                 virus = player_obs['virus']
                 ejected = player_obs['ejected']
                 item.append({'player': player, 'food': food, 'virus': virus, 'ejected': ejected})
             print(item)
-            time.sleep(10)
 
             return item
