@@ -9,7 +9,7 @@ import tqdm
 
 num_agents = 1
 render = False
-num_bots = 200
+num_bots = 100
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
@@ -67,7 +67,10 @@ for i in tqdm.tqdm(range(n_games), "Loading"):
     scores.append(score)
     total_score += score
     eps_history.append(agent.epsilon)
-    avg_score =total_score/i if i > 0 else score
+    if i > 0:
+        avg_score = total_score / i
+    else:
+        avg_score = total_score
     # print("Scores = " + str(scores))
     # for score in scores:
     #     if isinstance(score, (list, np.ndarray)):
