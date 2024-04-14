@@ -38,7 +38,7 @@ class AgarEnv(gym.Env):
             bot.step()
 
         self.server.Update()
-        observations = AgarObservation([self.parse_obs(agent) for agent in self.agents])
+        observations = self.parse_obs(self.agents[0])
         rewards = np.array([self.parse_reward(agent) for agent in self.agents])
         done = np.array([False for agent in self.agents])
         info = {}
@@ -53,7 +53,7 @@ class AgarEnv(gym.Env):
         self.server.addPlayers(self.players)
         self.viewer = None
         self.server.Update()
-        observations = AgarObservation([self.parse_obs(agent) for agent in self.agents])
+        observations = self.parse_obs(self.agents[0])
         return observations
 
     def parse_obs(self, player):
@@ -89,10 +89,13 @@ class AgarEnv(gym.Env):
             relative_position_y = (cell.position.y - player.centerPos.y - self.server.config.serverViewBaseY / 2) / self.server.config.serverViewBaseY * 2  # [-1, 1]
             canRemerge = onehot(cell.canRemerge, ndim=2)  # len 2 onehot 0 or 1
             ismycell = onehot(cell.owner == player, ndim=2)  # len 2 onehot 0 or 1
+            print("Player Features: " + str([boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]))
             features_player = np.array([[boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]])
             features_player = np.concatenate([features_player, canRemerge, ismycell], axis=1)
+            print("Player Features: " + str(features_player))
             return cell.cellType, features_player
-
+            # [boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y], [features_player, canRemerge, ismycell]
+            # [[ 0.        ,  0.        ,  0.07905694, -1.15129255, -1.11654023, -0.57541008, -1.51689859, -2.13911381,  0.        ,  0.        ,0.        ,  0.        ]]
         elif cell.cellType == 1:
             # food features
             radius = (cell.radius - (self.server.config.foodMaxRadius + self.server.config.foodMinRadius) / 2) / (self.server.config.foodMaxRadius - self.server.config.foodMinRadius) * 2  # fixme
@@ -251,6 +254,18 @@ class AgarEnv(gym.Env):
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
+    
+    def split_observation(observation):
+        player = observation['player']
+        food = observation['food']
+        virus = observation['virus']
+        ejected = observation['ejected']
+        print("Player = " + str(player))
+        print("Food = " + str(food))
+        print("Virus = " + str(virus))
+        print("Ejected = " + str(ejected))
+
+        return player, food, virus, ejected
 
 
 def onehot(d, ndim):
