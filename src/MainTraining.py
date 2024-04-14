@@ -21,17 +21,7 @@ step = 1
 window = None
 action = np.zeros((num_agents, 3))
 
-# def on_mouse_motion(x, y, dx, dy):
-#     action[0][0] = (x / 1920 - 0.5) * 2
-#     action[0][1] = (y / 1080 - 0.5) * 2
 
-# def on_key_press(k, modifiers):
-#     if k == key.W:
-#         action[0][2] = 2
-#     elif k == key.SPACE:
-#         action[0][2] = 1
-#     else:
-#         action[0][2] = 0
 
 start = time.time()
 
@@ -39,7 +29,7 @@ for i in range (n_games):
     score = 0
     done = False
     observation = env.reset()
-    time.sleep(1)
+    split_observation(observation)
     print("Observation = " + str(observation))
     while not done and step < 100:
         print("Step = " + str(step))
@@ -57,10 +47,8 @@ for i in range (n_games):
         observation_, reward, done, info = env.step(action1)
         score += reward[0]
         print("Reward = " + str(reward))
-        items = observation.get_item()
-        items_ = observation_.get_item()
-        agent.store_transition(items, action, reward, 
-                                    items_, done)
+        agent.store_transition(observation, action, reward, 
+                                    observation_, done)
         agent.learn()
         observation = observation_
 
@@ -81,3 +69,4 @@ for i in range (n_games):
 x = [i+1 for i in range(n_games)]
 filename = 'test_train.png'
 plotLearning(x, scores, eps_history, filename)
+
