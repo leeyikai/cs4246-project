@@ -25,8 +25,8 @@ class Bot(Player):
         if self.splitCooldown:
             self.splitCooldown -= 1
 
-        if random.random() < 0.3:
-            self.peace_step()
+        
+        self.peace_step()
         # else:
         #     self.aggressive_step()
 
