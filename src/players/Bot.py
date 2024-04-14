@@ -27,8 +27,8 @@ class Bot(Player):
 
         if random.random() < 0.3:
             self.peace_step()
-        else:
-            self.aggressive_step()
+        # else:
+        #     self.aggressive_step()
 
 
         self.mouse = self.centerPos.add(Vec2(self.action[0] * 800, self.action[1] * 800), 1)
