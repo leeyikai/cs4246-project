@@ -8,7 +8,7 @@ import torch as T
 import tqdm
 
 num_agents = 1
-render = True
+render = False
 num_bots = 200
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
@@ -17,7 +17,7 @@ env = AgarEnv(num_agents, num_bots, gamemode)
 agent = Agent(gamma=0.99, epsilon=0.2, batch_size=64, n_actions=100, eps_end=0.001,
                   input_dims=[8], lr=0.001, load_model=False)
 scores, eps_history = [], []
-n_games = 1000
+n_games = 500
 total_score = 0
 step = 1
 window = None
@@ -35,7 +35,7 @@ for i in tqdm.tqdm(range(n_games), "Loading"):
     observation = env.reset()
     observation = env.split_observation(observation)
     # print("Reset Observation = " + str(observation))
-    while not done and step < 100:
+    while not done and step < 2000:
         # print("Step = " + str(step))
         # if step % 40 == 0:
             # print('step', step)
@@ -46,10 +46,10 @@ for i in tqdm.tqdm(range(n_games), "Loading"):
                 window = env.viewer.window
 
         action, choice = agent.choose_action(observation)
-        if choice == 1:
-            print("Random Action" + str(action))
-        else:
-            print("Action" + str(action))
+        # if choice == 1:
+        #     print("Random Action" + str(action))
+        # else:
+        #     print("Action" + str(action))
         #get x and y coordinates for the number action
         degree = action * 3.6
         action1 = [np.cos(degree), np.sin(degree), 0, 0]
@@ -73,6 +73,9 @@ for i in tqdm.tqdm(range(n_games), "Loading"):
     #     if isinstance(score, (list, np.ndarray)):
     #         print("Found a sequence in scores:", score)
     # avg_score = np.mean(scores[-100:])
+    #write output to txt file
+    with open("output.txt", "a") as f:
+        f.write("episode " + str(i) + " score " + str(score) + " average score " + str(avg_score) + " epsilon " + str(agent.epsilon) + "\n")
     print("RESULT OF GAME: ", str(i))
     print('episode ', i, 'score %.2f' % score,
             'average score %.2f' % avg_score,
