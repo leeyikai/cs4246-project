@@ -23,9 +23,10 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 0.01  # make the max mass reward < 100
+        self.mass_reward_eps = 0  # make the max mass reward < 100
         self.kill_reward_eps = 10
         self.killed_reward_eps = 10
+        self.consumptionRewardEps = 100
 
     def step(self, actions):
         for action, agent in zip(actions, self.agents):
@@ -125,18 +126,21 @@ class AgarEnv(gym.Env):
             return cell.cellType, features_food
 
     def parse_reward(self, player):
-        mass_reward, kill_reward, killed_reward = self.calc_reward(player)
+        mass_reward, kill_reward, killed_reward, consumptionReward = self.calc_reward(player)
         # reward for being --- big, not dead, eating part of others, killing all of others, not be eaten by someone
         reward = mass_reward * self.mass_reward_eps + \
                  kill_reward * self.kill_reward_eps + \
-                 killed_reward * self.killed_reward_eps
+                 killed_reward * self.killed_reward_eps + \
+                 consumptionReward * self.consumptionRewardEps - \
+                 0.01
         return reward
 
     def calc_reward(self, player):
         mass_reward = sum([c.mass for c in player.cells])
         kill_reward = player.killreward
         killedreward = player.killedreward
-        return mass_reward, kill_reward, killedreward
+        consumptionReward = player.consumptionReward
+        return mass_reward, kill_reward, killedreward, consumptionReward
 
     def render(self, playeridx, mode = 'human'):
         # time.sleep(0.001)

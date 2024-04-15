@@ -13,10 +13,12 @@ def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirect
 
     if action == numDirections:
         # Split action
-        actionVec[2] = 1
+        # actionVec[2] = 1
+        actionVec[2] = 0
     elif action == numDirections + 1:
         # Eject action
-        actionVec[2] = 2
+        # actionVec[2] = 2
+        actionVec[2] = 0
     else:
         # Movement
         actionVec[2] = 0
@@ -28,7 +30,7 @@ def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirect
 
 render = True
 num_agents = 1
-num_bots = 20
+num_bots = 0
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 # env.seed(0)
@@ -53,13 +55,13 @@ window = None
 playerActionVec = np.zeros((num_agents, 3))
 
 start = time.time()
-numIters = 100
-numEpochs = 5
-batchSize = 16
+numIters = 1000
+numEpochs = 10
+batchSize = 32
 EPSClip = 0.2
 entropyCoeff = 0.01
 valueCoeff = 0.08
-learningRate = 1e-5
+learningRate = 1e-3
 maxGradNorm = 10
 
 optimizer = torch.optim.Adam(
@@ -91,7 +93,7 @@ for iterNum in range(numIters):
         while not buffer.isFilled():
             stepNum += 1
             if step % 32 == 0:
-                print(f'Epoch {iterNum + 1}, step {stepNum + 1}')
+                print(f'Iter {iterNum + 1}, step {stepNum + 1}')
                 print(step / (time.time() - start))
 
             if (resetEnvironment):
@@ -125,7 +127,6 @@ for iterNum in range(numIters):
                 print("Agent died! Resetting environment")
                 resetEnvironment = True
                 window.close()
-
             buffer.addEntry(
                 stateEncodings, # Frm prev iter
                 action, # Frm prev iter

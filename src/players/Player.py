@@ -19,6 +19,7 @@ class Player:
         self.lastEject = None
         self.killreward = 0
         self.killedreward = 0
+        self.consumptionReward = 0
 
         if gameServer:
                 gameServer.lastPlayerId += 1
@@ -30,6 +31,7 @@ class Player:
     def step(self, action, *kargs, **kwargs):
         self.killreward = 0
         self.killedreward = 0
+        self.consumptionReward = 0
 
         if len(self.cells) == 0:
             self.isRemoved = True
