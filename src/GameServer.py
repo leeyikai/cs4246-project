@@ -122,7 +122,7 @@ class GameServer:
         #     player.playerTracker.sendUpdate()
 
     def Update(self):
-        skipstep = 2
+        skipstep = 4
         for i in range(skipstep):
             self.WorldStep()
 
@@ -478,6 +478,14 @@ class GameServer:
 
         player.lastEject = self.tickCounter
         return True
+
+    def getEjectCooldown(self, player):
+        if player.lastEject is None:
+            return 0
+        dt = self.tickCounter - player.lastEject
+        if dt > self.config.ejectCooldown:
+            return 0 
+        return self.config.ejectCooldown - dt
 
     def ejectMass(self, player):
         if not self.canEjectMass(player) or player.frozen:
