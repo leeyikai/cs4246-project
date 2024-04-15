@@ -25,7 +25,7 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 0.01  # make the max mass reward < 100
+        self.mass_reward_eps = 1  # make the max mass reward < 100
         self.kill_reward_eps = 10
         self.killed_reward_eps = 10
 

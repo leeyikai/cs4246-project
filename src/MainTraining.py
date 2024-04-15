@@ -9,15 +9,20 @@ import tqdm
 
 num_agents = 1
 render = False
-num_bots = 100
+train = True
+test = False
+load_model = True
+num_bots = 200
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
-agent = Agent(gamma=0.99, epsilon=0.2, batch_size=64, n_actions=100, eps_end=0.001,
+agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
                   input_dims=[8], lr=0.001, load_model=False)
+
 scores, eps_history = [], []
 n_games = 500
+n_test_games = 10
 total_score = 0
 step = 1
 window = None
@@ -28,63 +33,102 @@ action = np.zeros((num_agents, 3))
 start = time.time()
 #implement tqdm for progress bar
 
-for i in tqdm.tqdm(range(n_games), "Loading"):
-    score = 0
-    done = False
-    step = 0
-    observation = env.reset()
-    observation = env.split_observation(observation)
-    # print("Reset Observation = " + str(observation))
-    while not done and step < 2000:
-        # print("Step = " + str(step))
-        # if step % 40 == 0:
-            # print('step', step)
-            # print(step / (time.time() - start))
-        if render:
-            env.render(0)
-            if not window:
-                window = env.viewer.window
+if test:
+    print("TESTING")
+    for i in tqdm.tqdm(range(n_test_games), "Testing"):
+        score = 0
+        done = False
+        step = 0
+        observation = env.reset()
+        observation = env.split_observation(observation)
+        
+        while not done and step < 200:
+            step += 1
+            if render:
+                env.render(0)
+                if not window:
+                    window = env.viewer.window
+            action, choice = agent.choose_action(observation)
+            degree = action * 3.6
+            action = [np.cos(degree), np.sin(degree), 0, 0]
+            observation_, reward, done, info = env.step(action)
+            score += reward
+            observation = observation_
+        scores.append(score)
+        avg_score = np.mean(scores)
+        print('episode ', i, 'score %.2f' % score,
+                'average score %.2f' % avg_score,
+                'epsilon %.2f' % agent.epsilon)
+    print("Average Score: ", np.mean(scores))  
+else:
+    for i in tqdm.tqdm(range(n_games), "Loading"):
+        print("TRAINING")
+        score = 0
+        done = False
+        step = 0
+        observation = env.reset()
+        observation = env.split_observation(observation)
+        # print("Reset Observation = " + str(observation))
+        while not done and step < 1000:
+            
+            step+=1
+            # if step % 40 == 0:
+                # print('step', step)
+                # print(step / (time.time() - start))
+            if render:
+                env.render(0)
+                if not window:
+                    window = env.viewer.window
+            try:
+                action, choice = agent.choose_action(observation)
+                if action <= 40:
+                    degree = action * 9
+                    action1 = [np.cos(degree), np.sin(degree), 0, 0]
+                elif action <= 80:
+                    degree = (action - 40) * 9
+                    action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                elif action <= 120:
+                    degree = (action - 80) * 9
+                    action1 = [np.cos(degree), np.sin(degree), 1, 0]
+                else:
+                    degree = (action - 120) * 9
+                    action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                
+                observation_, reward, done, info = env.step(action1)
+                # print("Reward = " + str(reward))
+                score += reward[0]
+                agent.store_transition(observation, action, reward, 
+                                            observation_, done)
+                agent.learn()
+                observation = observation_
 
-        action, choice = agent.choose_action(observation)
-        # if choice == 1:
-        #     print("Random Action" + str(action))
-        # else:
-        #     print("Action" + str(action))
-        #get x and y coordinates for the number action
-        degree = action * 3.6
-        action1 = [np.cos(degree), np.sin(degree), 0, 0]
-        observation_, reward, done, info = env.step(action1)
-        # print("Observation_ = " + str(observation_))
-        score += reward[0]
-        # print("Reward = " + str(reward))
-        agent.store_transition(observation, action, reward, 
-                                    observation_, done)
-        agent.learn()
-        observation = observation_
-
-        # action[0][2] = 0
-        step+=1
-    scores.append(score)
-    total_score += score
-    eps_history.append(agent.epsilon)
-    if i > 0:
-        avg_score = total_score / i
-    else:
-        avg_score = total_score
-    # print("Scores = " + str(scores))
-    # for score in scores:
-    #     if isinstance(score, (list, np.ndarray)):
-    #         print("Found a sequence in scores:", score)
-    # avg_score = np.mean(scores[-100:])
-    #write output to txt file
-    with open("output.txt", "a") as f:
-        f.write("episode " + str(i) + " score " + str(score) + " average score " + str(avg_score) + " epsilon " + str(agent.epsilon) + "\n")
-    print("RESULT OF GAME: ", str(i))
-    print('episode ', i, 'score %.2f' % score,
-            'average score %.2f' % avg_score,
-            'epsilon %.2f' % agent.epsilon)
-T.save(agent.Q_eval.state_dict(),"agar_model.pth")
-x = [i+1 for i in range(n_games)]
-filename = 'test_train.png'
-plotLearning(x, scores, eps_history, filename)
+                # action[0][2] = 0
+                
+            except KeyboardInterrupt:
+                if train:
+                    print("Saving Model?")
+                    T.save(agent.Q_eval.state_dict(),"agar_model.pth")
+                    print("Model Saved")
+                    x = [i+1 for i in range(n_games)]
+                    filename = 'test_train.png'
+                    plotLearning(x, scores, eps_history, filename)
+                    exit()
+            print("Rewards = " + str(reward))
+        scores.append(score)
+        total_score += score
+        eps_history.append(agent.epsilon)
+        if i > 0:
+            avg_score = total_score / i
+        else:
+            avg_score = total_score
+        with open("output.txt", "a") as f:
+            f.write("episode " + str(i) + " score " + str(score) + " average score " + str(avg_score) + " epsilon " + str(agent.epsilon) + "\n")
+        print("RESULT OF GAME: ", str(i))
+        print('episode ', i, 'score %.2f' % score,
+                'average score %.2f' % avg_score,
+                'epsilon %.2f' % agent.epsilon)
+    T.save(agent.Q_eval.state_dict(),"agar_model_new_actions.pth")
+    x = [i+1 for i in range(n_games)]
+    filename = 'test_train.png'
+    plotLearning(x, scores, eps_history, filename)
 
