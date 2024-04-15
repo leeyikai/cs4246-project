@@ -46,8 +46,9 @@ if test:
         
         while not done and step < num_steps:
             print("Steps: ", step)
+            step += 1
             if observation[0] is not None:
-                step += 1
+                
                 if render:
                     env.render(0)
                     if not window:
@@ -94,8 +95,9 @@ else:
         # print("Reset Observation = " + str(observation))
         while not done and step < num_steps:
             print("Steps: " + str(step))
+            step+=1
             if observation[0] is not None:
-                step+=1
+                
                 if step % 100 == 0:
                     print('step', step)
                     print(time.time() - start)
