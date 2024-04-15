@@ -233,9 +233,9 @@ for iterNum in range(trainingConfig.numIters):
             loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
 
             with torch.no_grad():
-                totalPolicyLoss += torch.sum(policyLoss)
-                totalValueLoss += torch.sum(valueLoss)
-                totalLoss += torch.sum(loss)
+                totalPolicyLoss += policyLoss
+                totalValueLoss += valueLoss
+                totalLoss += loss
 
             optimizer.zero_grad()
             loss.backward()
@@ -243,9 +243,11 @@ for iterNum in range(trainingConfig.numIters):
             optimizer.step()
 
         with torch.no_grad():
-            writer.add_scalar(f"iter{iterNum}-meanPolicyLoss/epoch", totalPolicyLoss/trainingConfig.replayBufferSize, epochNum)
-            writer.add_scalar(f"iter{iterNum}-meanValueLoss/epoch", totalValueLoss/trainingConfig.replayBufferSize, epochNum)
-            writer.add_scalar(f"iter{iterNum}-meanloss/epoch", totalLoss/trainingConfig.replayBufferSize, epochNum)
+            divFactor = trainingConfig.replayBufferSize / trainingConfig.batchSize
+
+            writer.add_scalar(f"iter{iterNum}-meanPolicyLoss/epoch", totalPolicyLoss/divFactor, epochNum)
+            writer.add_scalar(f"iter{iterNum}-meanValueLoss/epoch", totalValueLoss/divFactor, epochNum)
+            writer.add_scalar(f"iter{iterNum}-meanloss/epoch", totalLoss/divFactor, epochNum)
             writer.flush()
 
     # Save latest model to disk
