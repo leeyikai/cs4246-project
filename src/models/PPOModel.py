@@ -11,19 +11,23 @@ import torchvision.models as models
 
 class PPOModel(torch.nn.Module):
 
-    def __init__(self, numDirections = 16):
+    def __init__(self, numDirections = 16, usePrevFrame: bool = True, usePrevAction : bool = True):
         super().__init__()
         self.numActions = numDirections + 2 # number of movement directions + split + shoot
         self.imageEncoderOutputDims = 1280
         self.cooldownFeatureScaleFactor = 10
         self.prevActionFeatureScaleFactor = 10
         self.singleFrameFeatureDim = self.imageEncoderOutputDims + self.cooldownFeatureScaleFactor
-        self.featureDims = self.singleFrameFeatureDim * 2 + self.prevActionFeatureScaleFactor
+        self.featureDims = self.singleFrameFeatureDim + int(usePrevFrame) * self.singleFrameFeatureDim + \
+            int(usePrevAction) * self.prevActionFeatureScaleFactor
         
         self.initImagePreprocessor()
         self.initImageEncoder()
         self.initActor()
         self.initCritic()
+
+        self.usePrevFrame = usePrevFrame
+        self.usePrevAction = usePrevAction
 
        
     # Returns transforms that convert the gameview to a tensor ready to be processed
@@ -64,7 +68,14 @@ class PPOModel(torch.nn.Module):
         return torch.cat((imageEncodingsFlattened, cooldownEncodings), 0)
 
     def getFullStateEncoding(self, prevFrameEncoding: torch.Tensor, currFrameEncoding: torch.Tensor, prevAction: torch.Tensor):
-        return torch.cat((prevFrameEncoding, currFrameEncoding, prevAction.repeat(10)), 0)
+        if not self.usePrevAction and not self.usePrevFrame:
+            return currFrameEncoding
+        elif self.usePrevAction and not self.usePrevFrame:
+            return torch.cat((currFrameEncoding, prevAction.repeat(self.prevActionFeatureScaleFactor)), 0)
+        elif not self.usePrevAction and self.usePrevFrame:
+            return torch.cat((prevFrameEncoding, currFrameEncoding), 0)
+        else:
+            return torch.cat((prevFrameEncoding, currFrameEncoding, prevAction.repeat(self.prevActionFeatureScaleFactor)), 0)
 
     # Initializes the policy. Uses 
     def initActor(self):
@@ -116,7 +127,10 @@ class PPOModel(torch.nn.Module):
         torch.save(self, filePath)
 
     @classmethod
-    def fromFile(cls, filePath):
-        model = PPOModel()
+    def fromFile(cls, filePath, usePrevFrame, usePrevAction):
+        model = PPOModel(
+            usePrevFrame = usePrevFrame,
+            usePrevAction = usePrevAction
+        )
         model.load_state_dict(torch.load(filePath))
         return model

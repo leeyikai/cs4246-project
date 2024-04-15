@@ -24,6 +24,10 @@ learningRate = 1e-3
 maxGradNorm = 10
 
 # Model save and load paths
-startFromScratch = True
+startFromScratch = False
 modelSaveDir = "src/models/checkpoints"
 modelLoadDir = "src/models/checkpoints/latest.pt"
+
+# Feature options
+usePrevFrame = False
+usePrevAction = True

@@ -56,9 +56,16 @@ if torch.cuda.is_available():
 # Load model
 model = None
 if trainingConfig.startFromScratch:
-    model = PPOModel()
+    model = PPOModel(
+        usePrevFrame = trainingConfig.usePrevFrame,
+        usePrevAction = trainingConfig.usePrevAction
+    )
 else:
-    model = PPOModel.fromFile(trainingConfig.modelLoadDir)
+    model = PPOModel.fromFile(
+        trainingConfig.modelLoadDir,
+        usePrevFrame = trainingConfig.usePrevFrame,
+        usePrevAction = trainingConfig.usePrevAction
+    )
 model = model.to(device)
 
 # Prepare replay buffer
