@@ -1,5 +1,5 @@
 # Training environment things
-numBots = 0
+numBots = 10
 
 # Rewards!
 massRewardCoeff = 0

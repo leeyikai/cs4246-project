@@ -82,7 +82,8 @@ resetEnvironment = True
 ejectCooldown = None
 value = None
 prevValue = None
-stateEncodings = None
+currStateEncodings = None
+fullStateEncodings = None
 action = None
 probs = None
 logProb = None 
@@ -107,9 +108,11 @@ for iterNum in range(trainingConfig.numIters):
                 ejectCooldown = 0
                 view = env.render(0, mode = "rgb_array")
                 
-                stateEncodings = model.getEncoding(view, ejectCooldown, device)
-                action, logProb, entropy = model.getAction(stateEncodings)
-                value = model.getValue(stateEncodings)
+                currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
+                prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
+                fullStateEncodings = torch.cat((prevStateEncodings, currStateEncodings), 0)
+                action, logProb, entropy = model.getAction(fullStateEncodings)
+                value = model.getValue(fullStateEncodings)
 
                 playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
                 observations, rewards, done, info = env.step(playerActionVec)
@@ -122,16 +125,18 @@ for iterNum in range(trainingConfig.numIters):
                 window = env.viewer.window
             
             ejectCooldown = env.server.getEjectCooldown(agent)
-            nextStateEncodings = model.getEncoding(view, ejectCooldown, device)
-            nextAction, nextLogProb, nextEntropy = model.getAction(stateEncodings)
-            nextValue = model.getValue(stateEncodings)
+            nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
+            nextFullStateEncodings = torch.cat((currStateEncodings, nextStateEncodings), 0)
+            nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
+            nextValue = model.getValue(nextFullStateEncodings)
 
             if agent.isRemoved:
                 print("Agent died! Resetting environment")
                 resetEnvironment = True
                 window.close()
+                window = None
             buffer.addEntry(
-                stateEncodings, # Frm prev iter
+                fullStateEncodings, # Frm prev iter
                 action, # Frm prev iter
                 logProb, # Frm prev iter
                 value, # Frm prev iter
@@ -140,7 +145,8 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment
             )
 
-            stateEncodings = nextStateEncodings
+            currStateEncodings = nextStateEncodings
+            fullStateEncodings = nextFullStateEncodings
             action = nextAction
             logProbs = nextLogProb
             value = nextValue

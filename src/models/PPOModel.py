@@ -16,7 +16,8 @@ class PPOModel(torch.nn.Module):
         self.numActions = numDirections + 2 # number of movement directions + split + shoot
         self.imageEncoderOutputDims = 1280
         self.cooldownFeatureScaleFactor = 10
-        self.featureDims = self.imageEncoderOutputDims + self.cooldownFeatureScaleFactor
+        self.singleFrameFeatureDim = self.imageEncoderOutputDims + self.cooldownFeatureScaleFactor
+        self.featureDims = self.singleFrameFeatureDim * 2
         
         self.initImagePreprocessor()
         self.initImageEncoder()
@@ -48,13 +49,13 @@ class PPOModel(torch.nn.Module):
         imageEncoderLayers = list(efficientNet.features.children())
         imageEncoderLayers.append(torch.nn.AdaptiveAvgPool2d(1))
 
-        for layer in imageEncoderLayers[:-2]:
+        for layer in imageEncoderLayers:
             for layerParam in layer.parameters():
                 layerParam.requires_grad = False
         
         self.imageEncoder = torch.nn.Sequential(*imageEncoderLayers)
 
-    def getEncoding(self, view: np.ndarray, cooldown: float, device):
+    def getSingleFrameEncoding(self, view: np.ndarray, cooldown: float, device):
         preprocessedImage = self.imagePreprocessor(view.copy()).to(device)
         imageEncodings = self.imageEncoder(torch.unsqueeze(preprocessedImage, 0))
         imageEncodingsFlattened = torch.squeeze(imageEncodings)
