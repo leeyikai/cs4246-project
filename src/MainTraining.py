@@ -21,7 +21,7 @@ env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
 agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
-                  input_dims=[8], lr=0.001, load_model=load_model, model_path=data_path)
+                  input_dims=[10], lr=0.001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
 n_games = 500
@@ -40,6 +40,7 @@ if test:
         score = 0
         done = False
         step = 0
+        reward = 0
         observation = env.reset()
         observation = env.split_observation(observation)
         
@@ -49,12 +50,30 @@ if test:
                 env.render(0)
                 if not window:
                     window = env.viewer.window
-            action, choice = agent.choose_action(observation)
-            degree = action * 3.6
-            action = [np.cos(degree), np.sin(degree), 0, 0]
-            observation_, reward, done, info = env.step(action)
-            score += reward
-            observation = observation_
+            if observation[0] is not None:
+                action, choice = agent.choose_action(observation)
+                if action <= 40:
+                    degree = action * 9
+                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                    action1 = [np.cos(degree), np.sin(degree), 0, 0]
+                elif action <= 80:
+                    degree = (action - 40) * 9
+                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                    action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                elif action <= 120:
+                    degree = (action - 80) * 9
+                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                    action1 = [np.cos(degree), np.sin(degree), 1, 0]
+                else:
+                    degree = (action - 120) * 9
+                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                    action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                
+                observation_, reward, done, info = env.step(action1, reward)
+                # print("Reward = " + str(reward))
+                score += reward[0]
+                agent.store_transition(observation, action, reward, 
+                                            observation_, done)
         scores.append(score)
         avg_score = np.mean(scores)
         print('episode ', i, 'score %.2f' % score,
@@ -67,6 +86,7 @@ else:
         score = 0
         done = False
         step = 0
+        reward = 0
         observation = env.reset()
         observation = env.split_observation(observation)
         # print("Reset Observation = " + str(observation))
@@ -96,7 +116,7 @@ else:
                     degree = (action - 120) * 9
                     action1 = [np.cos(degree), np.sin(degree), 1, 1]
                 
-                observation_, reward, done, info = env.step(action1)
+                observation_, reward, done, info = env.step(action1, reward)
                 # print("Reward = " + str(reward))
                 score += reward[0]
                 agent.store_transition(observation, action, reward, 

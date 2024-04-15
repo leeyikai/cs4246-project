@@ -1,4 +1,4 @@
-SPEED_MULTIPLIER = 1
+SPEED_MULTIPLIER = 100
 
 class Config:
     def __init__(self):
