@@ -8,7 +8,7 @@ import torch as T
 import tqdm
 
 num_agents = 1
-render = True
+render = False
 train = True
 test = False
 data_path = "agar_model_test.pth"
