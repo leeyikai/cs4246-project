@@ -11,14 +11,17 @@ num_agents = 1
 render = False
 train = True
 test = False
-load_model = True
+data_path = "agar_model_test.pth"
+img_path = "agar_model_test.img"
+load_model = False
 num_bots = 200
+num_steps = 500
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
 agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
-                  input_dims=[8], lr=0.001, load_model=False)
+                  input_dims=[8], lr=0.001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
 n_games = 500
@@ -27,8 +30,6 @@ total_score = 0
 step = 1
 window = None
 action = np.zeros((num_agents, 3))
-
-
 
 start = time.time()
 #implement tqdm for progress bar
@@ -42,7 +43,7 @@ if test:
         observation = env.reset()
         observation = env.split_observation(observation)
         
-        while not done and step < 200:
+        while not done and step < num_steps:
             step += 1
             if render:
                 env.render(0)
@@ -69,12 +70,13 @@ else:
         observation = env.reset()
         observation = env.split_observation(observation)
         # print("Reset Observation = " + str(observation))
-        while not done and step < 1000:
+        while not done and step < num_steps:
             
             step+=1
-            # if step % 40 == 0:
-                # print('step', step)
-                # print(step / (time.time() - start))
+            if step % 100 == 0:
+                print('step', step)
+                print(time.time() - start)
+                start = time.time()
             if render:
                 env.render(0)
                 if not window:
@@ -107,13 +109,13 @@ else:
             except KeyboardInterrupt:
                 if train:
                     print("Saving Model?")
-                    T.save(agent.Q_eval.state_dict(),"agar_model.pth")
+                    T.save(agent.Q_eval.state_dict(), data_path)
                     print("Model Saved")
                     x = [i+1 for i in range(n_games)]
-                    filename = 'test_train.png'
+                    filename = img_path
                     plotLearning(x, scores, eps_history, filename)
                     exit()
-            print("Rewards = " + str(reward))
+            #print("Rewards = " + str(reward))
         scores.append(score)
         total_score += score
         eps_history.append(agent.epsilon)
@@ -127,8 +129,8 @@ else:
         print('episode ', i, 'score %.2f' % score,
                 'average score %.2f' % avg_score,
                 'epsilon %.2f' % agent.epsilon)
-    T.save(agent.Q_eval.state_dict(),"agar_model_new_actions.pth")
+    T.save(agent.Q_eval.state_dict(), data_path)
     x = [i+1 for i in range(n_games)]
-    filename = 'test_train.png'
+    filename = img_path
     plotLearning(x, scores, eps_history, filename)
 

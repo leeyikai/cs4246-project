@@ -4,7 +4,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 
-
 class DeepQNetwork(nn.Module):
     def __init__(self, lr, input_dims, fc1_dims, fc2_dims,
                  n_actions):
@@ -33,7 +32,7 @@ class DeepQNetwork(nn.Module):
 
 class Agent:
     def __init__(self, gamma, epsilon, lr, input_dims, batch_size, n_actions,
-                 max_mem_size=100000, eps_end=0.05, eps_dec=5e-5, load_model=False):
+                 max_mem_size=100000, eps_end=0.05, eps_dec=5e-5, load_model=False, model_path=""):
         self.gamma = gamma
         self.epsilon = epsilon
         self.eps_min = eps_end
@@ -46,7 +45,7 @@ class Agent:
         self.iter_cntr = 0
         self.replace_target = 100
         if load_model:
-            self.Q_eval = T.load('agar_model.pth')
+            self.Q_eval = T.load(model_path)
             print("Model Loaded")
         self.Q_eval = DeepQNetwork(lr, n_actions=n_actions,
                                    input_dims=input_dims,
