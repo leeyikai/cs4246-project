@@ -48,7 +48,7 @@ class Config:
         self.foodMinRadius= 10 # Minimum food radius (vanilla 10)
         self.foodMaxRadius= 20 # Maximum food radius (vanilla 20)
         self.foodMinAmount= 1000 # Minimum food cells on the map
-        self.foodMaxAmount= 5000 # Maximum food cells on the map
+        self.foodMaxAmount= 2000 # Maximum food cells on the map
         self.foodSpawnAmount= 30 # The number of food to spawn per interval
         self.foodMassGrow= 1 # Enable food mass grow ?
         self.spawnInterval= 5 # The interval between each food cell spawn in ticks (1 tick = 40 ms)
@@ -79,7 +79,7 @@ class Config:
         self.playerMinEjectRadius= 59.16079783 # Minimum radius a player cell has to be to eject mass. (vanilla= mass = val*val/100 = 35 mass)
         self.playerStartRadius= 31.6227766017 # Start radius of the player cell. (vanilla= mass = val*val/100 = 10 mass)
         self.playerMaxCells= 16 # Maximum cells a player is allowed to have.
-        self.playerSpeed= 2 # Player speed multiplier (1 = normal speed 2 = twice the normal speed)
+        self.playerSpeed= 1 # Player speed multiplier (1 = normal speed 2 = twice the normal speed)
         self.playerDecayRate= 0.002 # Amount of player cell radius lost per second
         self.playerDecayCap= 0 # Maximum mass a cell can have before it's decayrate multiplies by 10. (0 to disable)
         self.playerRecombineTime= 30 # Base time in seconds before a cell is allowed to recombine

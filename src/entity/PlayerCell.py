@@ -41,10 +41,10 @@ class PlayerCell(Cell):
             self.owner.killreward += prey.mass
         if prey.cellType == 1:
             self.owner.consumptionReward += prey.mass
-            print(f"ATE! Consumption reward: {self.owner.consumptionReward}")
+            print(f"Player cell ate sth! Prev consumption reward: {self.owner.consumptionReward - prey.mass} | ATE a blob of mass {prey.mass}! Total Consumption reward: {self.owner.consumptionReward}")
         super().onEat(prey)
 
     def onEaten(self, hunter):
         if hunter.cellType == 0:
-            self.owner.killedreward -= self.mass
+            self.owner.killedPenalty += self.mass
         super().onEaten(hunter)

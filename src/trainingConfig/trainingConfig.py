@@ -1,5 +1,13 @@
 # Training environment things
-numBots = 10
+numBots = 0
+
+# Rewards!
+massRewardCoeff = 0
+killRewardCoeff = 10
+consumptionRewardCoeff = 0.1
+killedPenaltyCoeff = 10
+deadPenalty = 200
+passivePenalty = 0.001
 
 # Loss function things
 EPSClip = 0.2

@@ -35,6 +35,15 @@ env = AgarEnv(
     num_bots = trainingConfig.numBots, 
     gamemode = 0
 )
+env.configureRewardCoeffs(
+    trainingConfig.massRewardCoeff,
+    trainingConfig.killRewardCoeff,
+    trainingConfig.consumptionRewardCoeff,
+    trainingConfig.killedPenaltyCoeff,
+    trainingConfig.deadPenalty,
+    trainingConfig.passivePenalty
+)
+
 window = None
 playerActionVec = np.zeros((1, 3))
 # env.seed(0)

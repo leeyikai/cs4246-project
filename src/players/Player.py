@@ -18,7 +18,7 @@ class Player:
         self.viewNodes = []
         self.lastEject = None
         self.killreward = 0
-        self.killedreward = 0
+        self.killedPenalty = 0
         self.consumptionReward = 0
 
         if gameServer:
@@ -30,7 +30,7 @@ class Player:
 
     def step(self, action, *kargs, **kwargs):
         self.killreward = 0
-        self.killedreward = 0
+        self.killedPenalty = 0
         self.consumptionReward = 0
 
         if len(self.cells) == 0:

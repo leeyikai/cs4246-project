@@ -23,10 +23,28 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 0  # make the max mass reward < 100
-        self.kill_reward_eps = 10
-        self.killed_reward_eps = 10
-        self.consumptionRewardEps = 1
+        self.massRewardCoeff = 0.001  # Multiplied by mass
+        self.killRewardCoeff = 10 # Multiplied by size of blob killed
+        self.consumptionRewardCoeff = 0.1 # Multiplied by size of non enemy blob eaten
+        self.killedPenaltyCoeff = 10 # Negated during reward calc. Multiplied by size of own blob eaten
+        self.deadPenalty = 200 # Negated during reward calc. Big boy negative for dying
+        self.passivePenalty = 0.01 # Negated during reward calc. Small boy negative for doing nth
+
+    def configureRewardCoeffs(
+        self,
+        massRewardCoeff,
+        killRewardCoeff,
+        consumptionRewardCoeff,
+        killedPenaltyCoeff,
+        deadPenalty,
+        passivePenalty
+    ):
+        self.massRewardCoeff = massRewardCoeff  
+        self.killRewardCoeff = killRewardCoeff
+        self.consumptionRewardCoeff = consumptionRewardCoeff
+        self.killedPenaltyCoeff = killedPenaltyCoeff
+        self.deadPenalty = deadPenalty
+        self.passivePenalty = passivePenalty
 
     def step(self, actions):
         for action, agent in zip(actions, self.agents):
@@ -126,21 +144,23 @@ class AgarEnv(gym.Env):
             return cell.cellType, features_food
 
     def parse_reward(self, player):
-        mass_reward, kill_reward, killed_reward, consumptionReward = self.calc_reward(player)
-        # reward for being --- big, not dead, eating part of others, killing all of others, not be eaten by someone
-        reward = mass_reward * self.mass_reward_eps + \
-                 kill_reward * self.kill_reward_eps + \
-                 killed_reward * self.killed_reward_eps + \
-                 consumptionReward * self.consumptionRewardEps - \
-                 0.01
+        massReward, killreward, killedPenalty, consumptionReward, deadPenalty = self.calc_reward(player)
+        # reward for being --- big, not dead, eating part of others, being eaten, not be eaten by someone, being dead
+        reward = massReward * self.massRewardCoeff + \
+                 killreward * self.killRewardCoeff - \
+                 killedPenalty * self.killedPenaltyCoeff + \
+                 consumptionReward * self.consumptionRewardCoeff - \
+                 deadPenalty - \
+                 self.passivePenalty
         return reward
 
     def calc_reward(self, player):
         mass_reward = sum([c.mass for c in player.cells])
-        kill_reward = player.killreward
-        killedreward = player.killedreward
+        killreward = player.killreward
         consumptionReward = player.consumptionReward
-        return mass_reward, kill_reward, killedreward, consumptionReward
+        killedPenalty = player.killedPenalty
+        deadPenalty = int(player.isRemoved) * self.deadPenalty
+        return mass_reward, killreward, killedPenalty, consumptionReward, deadPenalty
 
     def render(self, playeridx, mode = 'human'):
         # time.sleep(0.001)
