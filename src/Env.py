@@ -25,11 +25,11 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 1  # make the max mass reward < 100
-        self.kill_reward_eps = 10
-        self.killed_reward_eps = 10
+        self.mass_reward_eps = 10  # make the max mass reward < 100
+        self.kill_reward_eps = 100
+        self.killed_reward_eps = 100
 
-    def step(self, actions):
+    def step(self, actions, reward):
         for agent in self.agents:
             agent.step(actions)
         # for action, agent in zip(actions, self.agents):
@@ -41,7 +41,11 @@ class AgarEnv(gym.Env):
         self.server.Update()
         observations = self.parse_obs(self.agents[0])
         observations = self.split_observation(observations)
+
         rewards = np.array([self.parse_reward(agent) for agent in self.agents])
+        if rewards - reward > 0:
+            # print("Grew in size")
+            rewards += 5
         if self.agents[0].isRemoved == True:
             done = True
         info = {}
@@ -300,8 +304,11 @@ class AgarEnv(gym.Env):
         count_cells, cell_coordinate_x, cell_coordinate_y, size = self.get_closest_cell(player, curr_player_coords)
         food_coordinate_x, food_coordinate_y = self.get_closest_food(food, curr_player_coords)
         virus_coordinate_x, virus_coordinate_y = self.get_closest_virus(virus, curr_player_coords)
-        return count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y
-        
+        if curr_player_coords is not None:
+            return curr_player_coords[0], curr_player_coords[1], count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y
+        else:
+            return curr_player_coords, curr_player_coords, count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y
+
     def get_current_player(self, players):
         for player in players:
             player = player[0]
