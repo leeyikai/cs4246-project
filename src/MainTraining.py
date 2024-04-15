@@ -15,7 +15,7 @@ data_path = "agar_model_test.pth"
 img_path = "agar_model_test.img"
 load_model = False
 num_bots = 200
-num_steps = 500
+num_steps = 1000
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)

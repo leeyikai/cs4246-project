@@ -315,6 +315,7 @@ class AgarEnv(gym.Env):
         count_cells = 0
         coordinates_x = 0
         coordinates_y = 0
+        print(players)
         if players[0] is not None and curr_player_coords is not None:
             for cell in players[0]:
                 if cell[9] == 0:
