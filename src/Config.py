@@ -61,7 +61,7 @@ class Config:
         self.virusMinAmount= 50 # Minimum number of viruses on the map.
         self.virusMaxAmount= 100 # Maximum number of viruses on the map. If self number is reached then ejected cells will pass through viruses.
         self.motherCellMaxMass= 0 # Maximum amount of mass a mothercell is allowed to have (0 for no limit)
-        self.virusVelocity= 100 # Velocity of moving viruses (speed and distance)
+        self.virusVelocity= 780 # Velocity of moving viruses (speed and distance)
         self.virusMaxCells= 16 # Maximum cells a player can have from viruses.
 
         # EJECTED MASS
@@ -79,7 +79,7 @@ class Config:
         self.playerMinEjectRadius= 59.16079783 # Minimum radius a player cell has to be to eject mass. (vanilla= mass = val*val/100 = 35 mass)
         self.playerStartRadius= 31.6227766017 # Start radius of the player cell. (vanilla= mass = val*val/100 = 10 mass)
         self.playerMaxCells= 16 # Maximum cells a player is allowed to have.
-        self.playerSpeed= 1 # Player speed multiplier (1 = normal speed 2 = twice the normal speed)
+        self.playerSpeed= 2 # Player speed multiplier (1 = normal speed 2 = twice the normal speed)
         self.playerDecayRate= 0.002 # Amount of player cell radius lost per second
         self.playerDecayCap= 0 # Maximum mass a cell can have before it's decayrate multiplies by 10. (0 to disable)
         self.playerRecombineTime= 30 # Base time in seconds before a cell is allowed to recombine

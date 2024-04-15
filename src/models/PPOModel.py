@@ -111,6 +111,7 @@ class PPOModel(torch.nn.Module):
         torch.save(self, filePath)
 
     @classmethod
-    def fromFile(filePath):
+    def fromFile(cls, filePath):
         model = PPOModel()
-        model.load_state_dict(filePath)
+        model.load_state_dict(torch.load(filePath))
+        return model

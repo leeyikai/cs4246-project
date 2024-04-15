@@ -1,11 +1,11 @@
 from pyglet.window import key
 import numpy as np
 from Env import AgarEnv
-import time
 from models.PPOModel import PPOModel
 from models.ReplayBuffer import ReplayBuffer
 import torch
 import math 
+from trainingConfig import trainingConfig
 
 def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirections: int = 16):
     action = int(action.cpu().numpy())
@@ -28,11 +28,15 @@ def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirect
 
     return actionVec
 
+# Config environment
 render = True
-num_agents = 1
-num_bots = 0
-gamemode = 0
-env = AgarEnv(num_agents, num_bots, gamemode)
+env = AgarEnv(
+    num_agents = 1, 
+    num_bots = trainingConfig.numBots, 
+    gamemode = 0
+)
+window = None
+playerActionVec = np.zeros((1, 3))
 # env.seed(0)
 
 # USE GPU?
@@ -40,36 +44,30 @@ device = torch.device("cpu")
 if torch.cuda.is_available():
   device = torch.device("cuda:0")
 
-# MODEL THINGS
-bufferSize = 256
-model = PPOModel()
-buffer = ReplayBuffer(model.featureDims, model.numActions, device, bufferSize = bufferSize, gamma = 0.9)
+# Load model
+model = None
+if trainingConfig.startFromScratch:
+    model = PPOModel()
+else:
+    model = PPOModel.fromFile(trainingConfig.modelLoadDir)
 model = model.to(device)
-model.eval()
-model.imageEncoder.eval()
-model.actor.eval()
-model.critic.eval()
 
-step = 1
-window = None
-playerActionVec = np.zeros((num_agents, 3))
-
-start = time.time()
-numIters = 1000
-numEpochs = 10
-batchSize = 32
-EPSClip = 0.2
-entropyCoeff = 0.01
-valueCoeff = 0.08
-learningRate = 1e-3
-maxGradNorm = 10
-
-optimizer = torch.optim.Adam(
-    filter(lambda p: p.requires_grad, model.parameters()),
-    lr = learningRate
+# Prepare replay buffer
+buffer = ReplayBuffer(
+    model.featureDims, 
+    model.numActions, 
+    device, 
+    bufferSize = trainingConfig.replayBufferSize, 
+    gamma = trainingConfig.gamma
 )
 
-# INITIALIZE ENVIRONMENT
+# Initialize optimizer
+optimizer = torch.optim.Adam(
+    filter(lambda p: p.requires_grad, model.parameters()),
+    lr = trainingConfig.learningRate
+)
+
+# Initialize training variables
 agent = None
 resetEnvironment = True
 ejectCooldown = None
@@ -81,20 +79,16 @@ probs = None
 logProb = None 
 entropy = None
 rewards = None
-delta = 0.9
 wasTerminal = False
 
-# if not window:
-#     window = env.viewer.window
-
-for iterNum in range(numIters):
-    stepNum = 0
+stepNum = 0
+for iterNum in range(trainingConfig.numIters):
     with torch.no_grad():
+        model.eval()
         while not buffer.isFilled():
             stepNum += 1
-            if step % 32 == 0:
+            if stepNum % 32 == 0:
                 print(f'Iter {iterNum + 1}, step {stepNum + 1}')
-                print(step / (time.time() - start))
 
             if (resetEnvironment):
                 # Reset the environment
@@ -145,17 +139,16 @@ for iterNum in range(numIters):
 
             playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
             observations, rewards, done, info = env.step(playerActionVec)
-            step+=1
-
 
 
     # MODEL OPTIMIZATION
     print("OPTIMIZING")
-    for epochNum in range(numEpochs):
-        indices = np.arange(bufferSize)
+    model.train()
+    for epochNum in range(trainingConfig.numEpochs):
+        indices = np.arange(trainingConfig.replayBufferSize)
 
-        for startIndice in range(0, bufferSize, batchSize):
-            endIndice = startIndice + batchSize
+        for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
+            endIndice = startIndice + trainingConfig.batchSize
             batchIndices = indices[startIndice: endIndice]
 
             newLogProbs, newEntropy = model.getLogProbGivenAction(
@@ -171,8 +164,8 @@ for iterNum in range(numIters):
             policyLoss1 = -normalizedAdvantages * ratio
             policyLoss2 = -normalizedAdvantages * torch.clamp(
                 ratio,
-                1 - EPSClip,
-                1 + EPSClip
+                1 - trainingConfig.EPSClip,
+                1 + trainingConfig.EPSClip
             )
             policyLoss = torch.mean(torch.maximum(policyLoss1, policyLoss2))
 
@@ -183,8 +176,8 @@ for iterNum in range(numIters):
 
             newValuesClipped = buffer.values[batchIndices] + torch.clamp(
                 newValues - buffer.values[batchIndices],
-                -EPSClip,
-                EPSClip
+                -trainingConfig.EPSClip,
+                trainingConfig.EPSClip
             )
             valueLossClipped = torch.square(newValuesClipped - returns)
             valueLoss = torch.mean(torch.maximum(valueLossUnclipped, valueLossClipped))
@@ -193,15 +186,19 @@ for iterNum in range(numIters):
             entropyLoss = torch.mean(newEntropy)
 
             # Combine them losses
-            loss = policyLoss - entropyCoeff * entropyLoss + valueLoss * valueCoeff
+            loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
 
             optimizer.zero_grad()
             loss.backward()
-            torch.nn.utils.clip_grad_norm(model.actor.parameters(), maxGradNorm)
+            torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
             optimizer.step()
+    
+    # Save latest model to disk
+    fileName = "latest"
+    filePath = trainingConfig.modelSaveDir + "/latest.pt" 
+    torch.save(model.state_dict(), filePath)
 
     buffer.reset()
     
 
 env.close()
-
