@@ -1,5 +1,5 @@
 # Training environment things
-numBots = 0
+numBots = 10
 
 # Rewards!
 massRewardCoeff = 0
@@ -17,8 +17,8 @@ valueCoeff = 0.08
 # Learning things
 gamma = 0.99
 numIters = 1000
-numEpochs = 16
-batchSize = 32
+numEpochs = 32
+batchSize = 64
 replayBufferSize = 256
 learningRate = 1e-3
 maxGradNorm = 10

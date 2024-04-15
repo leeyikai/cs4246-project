@@ -6,6 +6,7 @@ from models.ReplayBuffer import ReplayBuffer
 import torch
 import math 
 from trainingConfig import trainingConfig
+from torch.utils.tensorboard import SummaryWriter
 
 def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirections: int = 16):
     action = int(action.cpu().numpy())
@@ -96,6 +97,11 @@ logProb = None
 entropy = None
 rewards = None
 wasTerminal = False
+gameNumber = 1
+
+# Initialize tensorboard for tracking
+writer = SummaryWriter()
+totalReward = 0
 
 stepNum = 0
 for iterNum in range(trainingConfig.numIters):
@@ -126,11 +132,13 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment = agent.isRemoved
                 continue
 
-            # PPO AGENT CODE HERE
+            # Render a new window if need be
             view = env.render(0, mode = "rgb_array")
             if not window:
                 window = env.viewer.window
             
+            # Abit confusing, but nextFullStateEncodings is the state encodings of this state. The reason why we have the
+            # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
             ejectCooldown = env.server.getEjectCooldown(agent)
             nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
             nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
@@ -142,6 +150,14 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment = True
                 window.close()
                 window = None
+
+                # Write to tensorboard
+                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
+                writer.flush()
+                totalReward = 0
+                gameNumber += 1
+            
+            # Add to replay buffer
             buffer.addEntry(
                 fullStateEncodings, # Frm prev iter
                 action, # Frm prev iter
@@ -152,6 +168,8 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment
             )
 
+            totalReward += rewards[0]
+
             currStateEncodings = nextStateEncodings
             fullStateEncodings = nextFullStateEncodings
             action = nextAction
@@ -159,6 +177,7 @@ for iterNum in range(trainingConfig.numIters):
             value = nextValue
             entropy = nextEntropy
 
+            # Get the player action vec, and step the environment to get the rewards for this iteration
             playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
             observations, rewards, done, info = env.step(playerActionVec)
 
@@ -169,6 +188,9 @@ for iterNum in range(trainingConfig.numIters):
     for epochNum in range(trainingConfig.numEpochs):
         indices = np.arange(trainingConfig.replayBufferSize)
 
+        totalPolicyLoss = 0
+        totalValueLoss = 0
+        totalLoss = 0
         for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
             endIndice = startIndice + trainingConfig.batchSize
             batchIndices = indices[startIndice: endIndice]
@@ -210,11 +232,22 @@ for iterNum in range(trainingConfig.numIters):
             # Combine them losses
             loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
 
+            with torch.no_grad():
+                totalPolicyLoss += torch.sum(policyLoss)
+                totalValueLoss += torch.sum(valueLoss)
+                totalLoss += torch.sum(loss)
+
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
             optimizer.step()
-    
+
+        with torch.no_grad():
+            writer.add_scalar(f"iter{iterNum}-meanPolicyLoss/epoch", totalPolicyLoss/trainingConfig.replayBufferSize, epochNum)
+            writer.add_scalar(f"iter{iterNum}-meanValueLoss/epoch", totalValueLoss/trainingConfig.replayBufferSize, epochNum)
+            writer.add_scalar(f"iter{iterNum}-meanloss/epoch", totalLoss/trainingConfig.replayBufferSize, epochNum)
+            writer.flush()
+
     # Save latest model to disk
     fileName = "latest"
     filePath = trainingConfig.modelSaveDir + "/latest.pt" 
@@ -222,5 +255,5 @@ for iterNum in range(trainingConfig.numIters):
 
     buffer.reset()
     
-
+writer.close()
 env.close()
