@@ -16,8 +16,9 @@ class PPOModel(torch.nn.Module):
         self.numActions = numDirections + 2 # number of movement directions + split + shoot
         self.imageEncoderOutputDims = 1280
         self.cooldownFeatureScaleFactor = 10
+        self.prevActionFeatureScaleFactor = 10
         self.singleFrameFeatureDim = self.imageEncoderOutputDims + self.cooldownFeatureScaleFactor
-        self.featureDims = self.singleFrameFeatureDim * 2
+        self.featureDims = self.singleFrameFeatureDim * 2 + self.prevActionFeatureScaleFactor
         
         self.initImagePreprocessor()
         self.initImageEncoder()
@@ -61,6 +62,9 @@ class PPOModel(torch.nn.Module):
         imageEncodingsFlattened = torch.squeeze(imageEncodings)
         cooldownEncodings = self.getcooldownEncoding(cooldown).to(device)
         return torch.cat((imageEncodingsFlattened, cooldownEncodings), 0)
+
+    def getFullStateEncoding(self, prevFrameEncoding: torch.Tensor, currFrameEncoding: torch.Tensor, prevAction: torch.Tensor):
+        return torch.cat((prevFrameEncoding, currFrameEncoding, prevAction.repeat(10)), 0)
 
     # Initializes the policy. Uses 
     def initActor(self):

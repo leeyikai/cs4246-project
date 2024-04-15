@@ -81,7 +81,6 @@ agent = None
 resetEnvironment = True
 ejectCooldown = None
 value = None
-prevValue = None
 currStateEncodings = None
 fullStateEncodings = None
 action = None
@@ -110,7 +109,8 @@ for iterNum in range(trainingConfig.numIters):
                 
                 currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
                 prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
-                fullStateEncodings = torch.cat((prevStateEncodings, currStateEncodings), 0)
+                prevAction = torch.tensor([0]).to(device) # Assume that the prev action is 0
+                fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction)
                 action, logProb, entropy = model.getAction(fullStateEncodings)
                 value = model.getValue(fullStateEncodings)
 
@@ -126,7 +126,7 @@ for iterNum in range(trainingConfig.numIters):
             
             ejectCooldown = env.server.getEjectCooldown(agent)
             nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
-            nextFullStateEncodings = torch.cat((currStateEncodings, nextStateEncodings), 0)
+            nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
             nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
             nextValue = model.getValue(nextFullStateEncodings)
 

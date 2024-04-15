@@ -160,6 +160,8 @@ class AgarEnv(gym.Env):
         consumptionReward = player.consumptionReward
         killedPenalty = player.killedPenalty
         deadPenalty = int(player.isRemoved) * self.deadPenalty
+        if (player.isRemoved):
+            print(f"DEAD PENALTY!! {deadPenalty}")
         return mass_reward, killreward, killedPenalty, consumptionReward, deadPenalty
 
     def render(self, playeridx, mode = 'human'):
