@@ -8,7 +8,7 @@ import torch as T
 import tqdm
 
 num_agents = 1
-render = False
+render = True
 train = True
 test = False
 data_path = "agar_model_test.pth"
@@ -45,35 +45,37 @@ if test:
         observation = env.split_observation(observation)
         
         while not done and step < num_steps:
-            step += 1
-            if render:
-                env.render(0)
-                if not window:
-                    window = env.viewer.window
+            print("Steps: ", step)
             if observation[0] is not None:
-                action, choice = agent.choose_action(observation)
-                if action <= 40:
-                    degree = action * 9
-                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                    action1 = [np.cos(degree), np.sin(degree), 0, 0]
-                elif action <= 80:
-                    degree = (action - 40) * 9
-                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                    action1 = [np.cos(degree), np.sin(degree), 0, 1]
-                elif action <= 120:
-                    degree = (action - 80) * 9
-                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                    action1 = [np.cos(degree), np.sin(degree), 1, 0]
-                else:
-                    degree = (action - 120) * 9
-                    print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                    action1 = [np.cos(degree), np.sin(degree), 1, 1]
-                
-                observation_, reward, done, info = env.step(action1, reward)
-                # print("Reward = " + str(reward))
-                score += reward[0]
-                agent.store_transition(observation, action, reward, 
-                                            observation_, done)
+                step += 1
+                if render:
+                    env.render(0)
+                    if not window:
+                        window = env.viewer.window
+                if observation[0] is not None:
+                    action, choice = agent.choose_action(observation)
+                    if action <= 40:
+                        degree = action * 9
+                        print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                        action1 = [np.cos(degree), np.sin(degree), 0, 0]
+                    elif action <= 80:
+                        degree = (action - 40) * 9
+                        print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                        action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                    elif action <= 120:
+                        degree = (action - 80) * 9
+                        print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                        action1 = [np.cos(degree), np.sin(degree), 1, 0]
+                    else:
+                        degree = (action - 120) * 9
+                        print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
+                        action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                    
+                    observation_, reward, done, info = env.step(action1, reward)
+                    # print("Reward = " + str(reward))
+                    score += reward[0]
+                    agent.store_transition(observation, action, reward, 
+                                                observation_, done)
         scores.append(score)
         avg_score = np.mean(scores)
         print('episode ', i, 'score %.2f' % score,
@@ -91,50 +93,51 @@ else:
         observation = env.split_observation(observation)
         # print("Reset Observation = " + str(observation))
         while not done and step < num_steps:
-            
-            step+=1
-            if step % 100 == 0:
-                print('step', step)
-                print(time.time() - start)
-                start = time.time()
-            if render:
-                env.render(0)
-                if not window:
-                    window = env.viewer.window
-            try:
-                action, choice = agent.choose_action(observation)
-                if action <= 40:
-                    degree = action * 9
-                    action1 = [np.cos(degree), np.sin(degree), 0, 0]
-                elif action <= 80:
-                    degree = (action - 40) * 9
-                    action1 = [np.cos(degree), np.sin(degree), 0, 1]
-                elif action <= 120:
-                    degree = (action - 80) * 9
-                    action1 = [np.cos(degree), np.sin(degree), 1, 0]
-                else:
-                    degree = (action - 120) * 9
-                    action1 = [np.cos(degree), np.sin(degree), 1, 1]
-                
-                observation_, reward, done, info = env.step(action1, reward)
-                # print("Reward = " + str(reward))
-                score += reward[0]
-                agent.store_transition(observation, action, reward, 
-                                            observation_, done)
-                agent.learn()
-                observation = observation_
+            print("Steps: " + str(step))
+            if observation[0] is not None:
+                step+=1
+                if step % 100 == 0:
+                    print('step', step)
+                    print(time.time() - start)
+                    start = time.time()
+                if render:
+                    env.render(0)
+                    if not window:
+                        window = env.viewer.window
+                try:
+                    action, choice = agent.choose_action(observation)
+                    if action <= 40:
+                        degree = action * 9
+                        action1 = [np.cos(degree), np.sin(degree), 0, 0]
+                    elif action <= 80:
+                        degree = (action - 40) * 9
+                        action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                    elif action <= 120:
+                        degree = (action - 80) * 9
+                        action1 = [np.cos(degree), np.sin(degree), 1, 0]
+                    else:
+                        degree = (action - 120) * 9
+                        action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                    
+                    observation_, reward, done, info = env.step(action1, reward)
+                    # print("Reward = " + str(reward))
+                    score += reward[0]
+                    agent.store_transition(observation, action, reward, 
+                                                observation_, done)
+                    agent.learn()
+                    observation = observation_
 
-                # action[0][2] = 0
-                
-            except KeyboardInterrupt:
-                if train:
-                    print("Saving Model?")
-                    T.save(agent.Q_eval.state_dict(), data_path)
-                    print("Model Saved")
-                    x = [i+1 for i in range(n_games)]
-                    filename = img_path
-                    plotLearning(x, scores, eps_history, filename)
-                    exit()
+                    # action[0][2] = 0
+                    
+                except KeyboardInterrupt:
+                    if train:
+                        print("Saving Model?")
+                        T.save(agent.Q_eval.state_dict(), data_path)
+                        print("Model Saved")
+                        x = [i+1 for i in range(n_games)]
+                        filename = img_path
+                        plotLearning(x, scores, eps_history, filename)
+                        exit()
             #print("Rewards = " + str(reward))
         scores.append(score)
         total_score += score
