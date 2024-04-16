@@ -26,9 +26,9 @@ maxGradNorm = 10
 trainFeatureExtractor = False
 
 # Model save and load paths
-startFromScratch = True
+startFromScratch = False
 modelSaveDir = "src/models/checkpoints"
-modelLoadPath = "src/models/checkpoints/Direct.pt"
+modelLoadPath = "src/models/checkpoints/latest.pt"
 
 # Feature options
 usePrevFrame = False

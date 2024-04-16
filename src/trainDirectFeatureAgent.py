@@ -39,7 +39,7 @@ def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirect
     return actionVec
 
 # Config environment
-render = True
+render = False
 env = AgarEnv(
     num_agents = 1, 
     num_bots = trainingConfig.numBots, 
@@ -126,7 +126,8 @@ for iterNum in range(trainingConfig.numIters):
                 observations = env.reset().obs[0]
                 agent = env.players[0]
                 ejectCooldown = 0
-                env.render(0)
+                if render:
+                    env.render(0)
                 
                 currStateEncodings = model.getSingleFrameEncoding(observations, ejectCooldown, device)
                 prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
@@ -142,15 +143,17 @@ for iterNum in range(trainingConfig.numIters):
                 continue
 
             # Render a new window if need be
-            env.render(0)
-            if not window:
-                window = env.viewer.window
+            if render:
+                env.render(0)
+                if not window:
+                    window = env.viewer.window
             
             if checkIfAgentIsRemoved(observations) or stepNum == trainingConfig.maxSteps:
                 print("Agent died or stepNum == maxSteps! Resetting environment")
                 resetEnvironment = True
-                window.close()
-                window = None
+                if window is not None:
+                    window.close()
+                    window = None
 
                 # Write to tensorboard
                 writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)

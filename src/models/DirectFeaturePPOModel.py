@@ -54,11 +54,12 @@ class DirectFeaturePPOModel(torch.nn.Module):
 
         # Populate food features
         foodCellFeatures = torch.zeros(self.numFoodInFeature, 3)
-        foodFeaturesToUse = len(obs['food'])
-        if foodFeaturesToUse > self.numFoodInFeature:
-            foodFeaturesToUse = self.numFoodInFeature
-        
-        foodCellFeatures[: foodFeaturesToUse] = torch.from_numpy(obs['food'][: foodFeaturesToUse])
+        if obs['food'] is not None:
+            foodFeaturesToUse = len(obs['food'])
+            if foodFeaturesToUse > self.numFoodInFeature:
+                foodFeaturesToUse = self.numFoodInFeature
+            
+            foodCellFeatures[: foodFeaturesToUse] = torch.from_numpy(obs['food'][: foodFeaturesToUse])
         foodCellFeatures = torch.flatten(foodCellFeatures)
 
         singleFrameEncodings = torch.cat((cooldownEncodings, playerSizeEncodings, enemyCellFeatures, foodCellFeatures), 0).to(device)
