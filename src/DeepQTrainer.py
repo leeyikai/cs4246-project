@@ -111,5 +111,6 @@ class Agent:
         self.Q_eval.optimizer.step()
 
         self.iter_cntr += 1
-        self.epsilon = self.epsilon - self.eps_dec \
-            if self.epsilon > self.eps_min else self.eps_min
+        self.epsilon = 1.0
+        # self.epsilon = self.epsilon - self.eps_dec \
+        #     if self.epsilon > self.eps_min else self.eps_min
