@@ -1,7 +1,7 @@
 from pyglet.window import key
 import numpy as np
 from Env import AgarEnv
-from models.VisionPPOModel import VisionPPOModel
+from models.DirectFeaturePPOModel import DirectFeaturePPOModel
 from models.ReplayBuffer import ReplayBuffer
 import torch
 import math 
@@ -9,6 +9,13 @@ from trainingConfig import trainingConfig
 from torch.utils.tensorboard import SummaryWriter
 from torchviz import make_dot
 import pydot
+
+def checkIfAgentIsRemoved(obs: dict):
+    playerObs = obs['player']
+    for player in playerObs:
+        if player[3]:
+            return False
+    return True
 
 def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirections: int = 16):
     action = int(action.cpu().numpy())
@@ -57,11 +64,10 @@ if torch.cuda.is_available():
   device = torch.device("cuda:0")
 
 # Load model
-model = VisionPPOModel(
+model = DirectFeaturePPOModel(
     numDirections = trainingConfig.numDirections,
     usePrevFrame = trainingConfig.usePrevFrame,
-    usePrevAction = trainingConfig.usePrevAction,
-    trainFeatureExtractor = trainingConfig.trainFeatureExtractor
+    usePrevAction = trainingConfig.usePrevAction
 )
 
 if not trainingConfig.startFromScratch:
@@ -96,6 +102,7 @@ logProb = None
 entropy = None
 rewards = None
 wasTerminal = False
+observations = None
 gameNumber = 1
 
 # Initialize tensorboard for tracking
@@ -116,12 +123,12 @@ for iterNum in range(trainingConfig.numIters):
             if (resetEnvironment):
                 # Reset the environment
                 print("Resetting environment...")
-                env.reset()
+                observations = env.reset().obs[0]
                 agent = env.players[0]
                 ejectCooldown = 0
-                view = env.render(0, mode = "rgb_array")
+                env.render(0)
                 
-                currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
+                currStateEncodings = model.getSingleFrameEncoding(observations, ejectCooldown, device)
                 prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
                 prevAction = torch.tensor([0]).to(device) # Assume that the prev action is 0
                 fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction)
@@ -129,22 +136,36 @@ for iterNum in range(trainingConfig.numIters):
                 value = model.getValue(fullStateEncodings)
 
                 playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
-                observations, rewards, done, info = env.step(playerActionVec)
-                resetEnvironment = agent.isRemoved
+                agarObs, rewards, done, info = env.step(playerActionVec)
+                observations = agarObs.obs[0]
+                resetEnvironment = checkIfAgentIsRemoved(observations)
                 continue
 
             # Render a new window if need be
-            view = env.render(0, mode = "rgb_array")
+            env.render(0)
             if not window:
                 window = env.viewer.window
             
+            if checkIfAgentIsRemoved(observations) or stepNum == trainingConfig.maxSteps:
+                print("Agent died or stepNum == maxSteps! Resetting environment")
+                resetEnvironment = True
+                window.close()
+                window = None
+
+                # Write to tensorboard
+                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
+                writer.flush()
+                totalReward = 0
+                gameNumber += 1
+
             # Abit confusing, but nextFullStateEncodings is the state encodings of this state. The reason why we have the
             # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
             ejectCooldown = env.server.getEjectCooldown(agent)
-            nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
-            nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
-            nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
-            nextValue = model.getValue(nextFullStateEncodings)
+            if not resetEnvironment:
+                nextStateEncodings = model.getSingleFrameEncoding(observations, ejectCooldown, device)
+                nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
+                nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
+                nextValue = model.getValue(nextFullStateEncodings)
 
             # Add to replay buffer
             buffer.addEntry(
@@ -156,18 +177,6 @@ for iterNum in range(trainingConfig.numIters):
                 torch.tensor([rewards[0]]).to(device), # Frm prev iter
                 resetEnvironment
             )
-
-            if agent.isRemoved or stepNum == trainingConfig.maxSteps:
-                print("Agent died or stepNum == maxSteps! Resetting environment")
-                resetEnvironment = True
-                window.close()
-                window = None
-
-                # Write to tensorboard
-                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
-                writer.flush()
-                totalReward = 0
-                gameNumber += 1
             
             currStateEncodings = nextStateEncodings
             fullStateEncodings = nextFullStateEncodings
@@ -178,7 +187,8 @@ for iterNum in range(trainingConfig.numIters):
 
             # Get the player action vec, and step the environment to get the rewards for this iteration
             playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
-            observations, rewards, done, info = env.step(playerActionVec)
+            agarObs, rewards, done, info = env.step(playerActionVec)
+            observations = agarObs.obs[0]
             totalReward += rewards[0]
 
 

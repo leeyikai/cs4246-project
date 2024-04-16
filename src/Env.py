@@ -94,29 +94,29 @@ class AgarEnv(gym.Env):
     def cell_obs(self, cell, player):
         if cell.cellType == 0:
             # player features
-            boost_x = (cell.boostDistance * cell.boostDirection.x) / self.server.config.splitVelocity  # [-1, 1]
-            boost_y = cell.boostDistance * cell.boostDirection.y / self.server.config.splitVelocity  # [-1, 1]
+            # boost_x = (cell.boostDistance * cell.boostDirection.x) / self.server.config.splitVelocity  # [-1, 1]
+            # boost_y = cell.boostDistance * cell.boostDirection.y / self.server.config.splitVelocity  # [-1, 1]
             radius = cell.radius / 400  # need to think about mean though [0, infinite...]  # fixme
-            log_radius = np.log(cell.radius / 100)  # need to think about mean though   # fixme
-            position_x = (cell.position.x - self.server.config.borderWidth / 2) / self.server.config.borderWidth * 2  # [-1, 1]
-            position_y = (cell.position.y - self.server.config.borderHeight / 2) / self.server.config.borderHeight * 2  # [-1, 1]
+            # log_radius = np.log(cell.radius / 100)  # need to think about mean though   # fixme
+            # position_x = (cell.position.x - self.server.config.borderWidth / 2) / self.server.config.borderWidth * 2  # [-1, 1]
+            # position_y = (cell.position.y - self.server.config.borderHeight / 2) / self.server.config.borderHeight * 2  # [-1, 1]
             relative_position_x = (cell.position.x - player.centerPos.x - self.server.config.serverViewBaseX / 2) / self.server.config.serverViewBaseX * 2  # [-1, 1]
             relative_position_y = (cell.position.y - player.centerPos.y - self.server.config.serverViewBaseY / 2) / self.server.config.serverViewBaseY * 2  # [-1, 1]
-            canRemerge = onehot(cell.canRemerge, ndim=2)  # len 2 onehot 0 or 1
-            ismycell = onehot(cell.owner == player, ndim=2)  # len 2 onehot 0 or 1
-            features_player = np.array([[boost_x, boost_y, radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]])
-            features_player = np.concatenate([features_player, canRemerge, ismycell], axis=1)
+            # canRemerge = onehot(cell.canRemerge, ndim=2)  # len 2 onehot 0 or 1
+            # ismycell = onehot(cell.owner == player, ndim=2)  # len 2 onehot 0 or 1
+            features_player = np.array([relative_position_x, relative_position_y, radius, cell.owner == player])
+            # features_player = np.concatenate([features_player, ismycell], axis=1)
             return cell.cellType, features_player
 
         elif cell.cellType == 1:
             # food features
-            radius = (cell.radius - (self.server.config.foodMaxRadius + self.server.config.foodMinRadius) / 2) / (self.server.config.foodMaxRadius - self.server.config.foodMinRadius) * 2  # fixme
-            log_radius = np.log(cell.radius / ((self.server.config.foodMaxRadius + self.server.config.foodMinRadius) / 2))  # fixme
-            position_x = (cell.position.x - self.server.config.borderWidth / 2) / self.server.config.borderWidth * 2  # [-1, 1]
-            position_y = (cell.position.y - self.server.config.borderHeight / 2) / self.server.config.borderHeight * 2  # [-1, 1]
+            radius = cell.radius/400  # fixme
+            # log_radius = np.log(cell.radius / ((self.server.config.foodMaxRadius + self.server.config.foodMinRadius) / 2))  # fixme
+            # position_x = (cell.position.x - self.server.config.borderWidth / 2) / self.server.config.borderWidth * 2  # [-1, 1]
+            # position_y = (cell.position.y - self.server.config.borderHeight / 2) / self.server.config.borderHeight * 2  # [-1, 1]
             relative_position_x = (cell.position.x - player.centerPos.x - self.server.config.serverViewBaseX / 2) / self.server.config.serverViewBaseX * 2  # [-1, 1]
             relative_position_y = (cell.position.y - player.centerPos.y - self.server.config.serverViewBaseY / 2) / self.server.config.serverViewBaseY * 2  # [-1, 1]
-            features_food = np.array([[radius, log_radius, position_x, position_y, relative_position_x, relative_position_y]])
+            features_food = np.array([[radius, relative_position_x, relative_position_y]])
             return cell.cellType, features_food
 
         elif cell.cellType == 2:

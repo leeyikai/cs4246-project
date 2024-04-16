@@ -8,7 +8,7 @@ killRewardCoeff = 10
 consumptionRewardCoeff = 0.1
 killedPenaltyCoeff = 10
 deadPenalty = 50
-passivePenalty = 0.001
+passivePenalty = 0
 
 # Loss function things
 EPSClip = 0.2
@@ -26,9 +26,9 @@ maxGradNorm = 10
 trainFeatureExtractor = False
 
 # Model save and load paths
-startFromScratch = False
+startFromScratch = True
 modelSaveDir = "src/models/checkpoints"
-modelLoadPath = "src/models/checkpoints/latest.pt"
+modelLoadPath = "src/models/checkpoints/Direct.pt"
 
 # Feature options
 usePrevFrame = False

@@ -1,1 +1,2 @@
-from models.PPOModel import *
+from models.VisionPPOModel import *
+from models.DirectFeaturePPOModel import *
