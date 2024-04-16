@@ -32,7 +32,7 @@ class DeepQNetwork(nn.Module):
 
 class Agent:
     def __init__(self, gamma, epsilon, lr, input_dims, batch_size, n_actions,
-                 max_mem_size=100000, eps_end=0.05, eps_dec=5e-5, load_model=False, model_path=""):
+                 max_mem_size=100000, eps_end=0.001, eps_dec=1e-5, load_model=False, model_path=""):
         self.gamma = gamma
         self.epsilon = epsilon
         self.eps_min = eps_end
@@ -111,5 +111,7 @@ class Agent:
         self.Q_eval.optimizer.step()
 
         self.iter_cntr += 1
-        self.epsilon = self.epsilon - self.eps_dec \
-            if self.epsilon > self.eps_min else self.eps_min
+        if self.epsilon > self.eps_min:
+            self.epsilon = self.epsilon - self.eps_dec
+        else:
+            self.epsilon = self.eps_min
