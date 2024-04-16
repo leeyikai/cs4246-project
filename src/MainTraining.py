@@ -8,20 +8,20 @@ import torch as T
 import tqdm
 
 num_agents = 1
-render = False
+render = True
 train = True
 test = True
-data_path = "agar_model_base.pth"
-img_path = "agar_model_base.img"
-output_path = "output_base.txt"
+data_path = "agar_model_kill_killed5.pth"
+img_path = "agar_model_kill_killed5.png"
+output_path = "output_kill_killed5.txt"
 load_model = True
 num_bots = 200
-num_steps = 10000
+num_steps = 2000
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
-agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
+agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.05,
                   input_dims=[10], lr=0.001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []

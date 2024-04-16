@@ -104,3 +104,8 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+
+# models & images
+*.pth
+*.png
+*.txt

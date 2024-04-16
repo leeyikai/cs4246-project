@@ -26,8 +26,8 @@ class AgarEnv(gym.Env):
 
         # factors for reward
         self.mass_reward_eps = 0.001  # make the max mass reward < 100 (max mass = 22500)
-        self.kill_reward_eps = 100
-        self.killed_reward_eps = 100
+        self.kill_reward_eps = 200
+        self.killed_reward_eps = 1000
 
     def step(self, actions, reward):
         for agent in self.agents:
