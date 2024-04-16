@@ -22,10 +22,9 @@ class VisionPPOModel(torch.nn.Module):
         self.numActions = numDirections + 2 # number of movement directions + split + shoot
         self.imageEncoderOutputDims = 1280
         self.cooldownFeatureScaleFactor = 10
-        self.prevActionFeatureScaleFactor = 10
         self.singleFrameFeatureDim = self.imageEncoderOutputDims + self.cooldownFeatureScaleFactor
         self.featureDims = self.singleFrameFeatureDim + int(usePrevFrame) * self.singleFrameFeatureDim + \
-            int(usePrevAction) * self.prevActionFeatureScaleFactor
+            int(usePrevAction) * self.numActions
         
         self.usePrevFrame = usePrevFrame
         self.usePrevAction = usePrevAction
@@ -79,15 +78,20 @@ class VisionPPOModel(torch.nn.Module):
         cooldownEncodings = self.getcooldownEncoding(cooldown).to(device)
         return torch.cat((imageEncodingsFlattened, cooldownEncodings), 0)
 
-    def getFullStateEncoding(self, prevFrameEncoding: torch.Tensor, currFrameEncoding: torch.Tensor, prevAction: torch.Tensor):
+    def getPrevActionEncoding(self, prevAction: torch.Tensor):
+        oneHotFeature = torch.zeros(self.numActions, dtype=torch.float32)
+        oneHotFeature[int(prevAction.cpu().numpy())] = 1.0
+        return oneHotFeature
+
+    def getFullStateEncoding(self, prevFrameEncoding: torch.Tensor, currFrameEncoding: torch.Tensor, prevAction: torch.Tensor, device):
         if not self.usePrevAction and not self.usePrevFrame:
             return currFrameEncoding
         elif self.usePrevAction and not self.usePrevFrame:
-            return torch.cat((currFrameEncoding, prevAction.repeat(self.prevActionFeatureScaleFactor)), 0)
+            return torch.cat((currFrameEncoding, self.getPrevActionEncoding(prevAction).to(device)), 0)
         elif not self.usePrevAction and self.usePrevFrame:
             return torch.cat((prevFrameEncoding, currFrameEncoding), 0)
         else:
-            return torch.cat((prevFrameEncoding, currFrameEncoding, prevAction.repeat(self.prevActionFeatureScaleFactor)), 0)
+            return torch.cat((prevFrameEncoding, currFrameEncoding, self.getPrevActionEncoding(prevAction).to(device)), 0)
 
     # Initializes the policy. Uses 
     def initActor(self):

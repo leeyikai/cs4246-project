@@ -124,7 +124,7 @@ for iterNum in range(trainingConfig.numIters):
                 currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
                 prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
                 prevAction = torch.tensor([0]).to(device) # Assume that the prev action is 0
-                fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction)
+                fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction, device)
                 action, logProb, entropy = model.getAction(fullStateEncodings)
                 value = model.getValue(fullStateEncodings)
 
@@ -142,19 +142,19 @@ for iterNum in range(trainingConfig.numIters):
             # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
             ejectCooldown = env.server.getEjectCooldown(agent)
             nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
-            nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
+            nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action, device)
             nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
             nextValue = model.getValue(nextFullStateEncodings)
 
             # Add to replay buffer
             buffer.addEntry(
-                fullStateEncodings, # Frm prev iter
-                action, # Frm prev iter
-                logProb, # Frm prev iter
-                value, # Frm prev iter
-                nextValue, # Frm curr iter, the value of curr state to calculate advantage
-                torch.tensor([rewards[0]]).to(device), # Frm prev iter
-                resetEnvironment
+                encodedObservation = fullStateEncodings, # Frm prev iter
+                action = action, # Frm prev iter
+                logProb = logProb, # Frm prev iter
+                value = value, # Frm prev iter
+                nextValue = nextValue, # Frm curr iter, the value of curr state to calculate advantage
+                reward = torch.tensor([rewards[0]]).to(device), # Frm prev iter
+                isTerminal = resetEnvironment
             )
 
             if agent.isRemoved or stepNum == trainingConfig.maxSteps:
@@ -168,6 +168,7 @@ for iterNum in range(trainingConfig.numIters):
                 writer.flush()
                 totalReward = 0
                 gameNumber += 1
+                stepNum = 0
             
             currStateEncodings = nextStateEncodings
             fullStateEncodings = nextFullStateEncodings
