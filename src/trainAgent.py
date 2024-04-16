@@ -7,6 +7,8 @@ import torch
 import math 
 from trainingConfig import trainingConfig
 from torch.utils.tensorboard import SummaryWriter
+from torchviz import make_dot
+import pydot
 
 def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirections: int = 16):
     action = int(action.cpu().numpy())
@@ -190,6 +192,8 @@ for iterNum in range(trainingConfig.numIters):
         totalValueLoss = 0
         totalLoss = 0
         for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
+            optimizer.zero_grad()
+            
             endIndice = startIndice + trainingConfig.batchSize
             batchIndices = indices[startIndice: endIndice]
 
@@ -198,18 +202,18 @@ for iterNum in range(trainingConfig.numIters):
                 buffer.actions[batchIndices]
             )
             logratio = newLogProbs - buffer.logProbs[batchIndices]
-            ratio = logratio.exp()
+            ratio = torch.exp(logratio)
             advantages = buffer.advantages[batchIndices]
             normalizedAdvantages = torch.nn.functional.normalize(advantages, dim = 0, eps = 1e-8)
 
-            # Calculate policy loss. It is negative as we want to maximize instead of minimize
-            policyLoss1 = -normalizedAdvantages * ratio
-            policyLoss2 = -normalizedAdvantages * torch.clamp(
+            # Calculate policy loss. It is negated as we want to maximize instead of minimize
+            policyLoss1 = normalizedAdvantages * ratio
+            policyLoss2 = normalizedAdvantages * torch.clamp(
                 ratio,
                 1 - trainingConfig.EPSClip,
                 1 + trainingConfig.EPSClip
             )
-            policyLoss = torch.mean(torch.maximum(policyLoss1, policyLoss2))
+            policyLoss = -torch.mean(torch.minimum(policyLoss1, policyLoss2))
 
             # Calculate value loss
             returns = advantages + buffer.values[batchIndices]
@@ -230,13 +234,13 @@ for iterNum in range(trainingConfig.numIters):
             # Combine them losses
             loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
 
+            loss.backward()
+
             with torch.no_grad():
                 totalPolicyLoss += policyLoss
                 totalValueLoss += valueLoss
                 totalLoss += loss
 
-            optimizer.zero_grad()
-            loss.backward()
             torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
             optimizer.step()
 

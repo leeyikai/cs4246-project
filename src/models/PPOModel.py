@@ -99,8 +99,7 @@ class PPOModel(torch.nn.Module):
         self.actor = torch.nn.Sequential(
             linear1,
             torch.nn.ReLU(),
-            linear2,
-            torch.nn.ReLU()
+            linear2
         )
     
     def getAction(self, statePostEncoding):
