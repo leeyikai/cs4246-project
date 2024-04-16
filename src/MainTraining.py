@@ -11,9 +11,9 @@ num_agents = 1
 render = False
 train = True
 test = False
-data_path = "agar_model_test.pth"
-img_path = "agar_model_test.img"
-load_model = False
+data_path = "agar_model_base.pth"
+img_path = "agar_model_test.jpeg"
+load_model = True
 num_bots = 200
 num_steps = 1000
 gamemode = 0
@@ -21,7 +21,7 @@ env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
 agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
-                  input_dims=[10], lr=0.001, load_model=load_model, model_path=data_path)
+                  input_dims=[10], lr=0.00001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
 n_games = 500
@@ -45,7 +45,6 @@ if test:
         observation = env.split_observation(observation)
         
         while not done and step < num_steps:
-            print("Steps: ", step)
             step += 1
             if observation[0] is not None:
                 
@@ -55,6 +54,7 @@ if test:
                         window = env.viewer.window
                 if observation[0] is not None:
                     action, choice = agent.choose_action(observation)
+                    print("Action: " + str(action))
                     if action <= 40:
                         degree = action * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
@@ -71,12 +71,13 @@ if test:
                         degree = (action - 120) * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
                         action1 = [np.cos(degree), np.sin(degree), 1, 1]
-                    
                     observation_, reward, done, info = env.step(action1, reward)
                     # print("Reward = " + str(reward))
                     score += reward[0]
                     agent.store_transition(observation, action, reward, 
                                                 observation_, done)
+                    observation = observation_
+        print("DONE: " + str(done))
         scores.append(score)
         avg_score = np.mean(scores)
         print('episode ', i, 'score %.2f' % score,
@@ -94,7 +95,6 @@ else:
         observation = env.split_observation(observation)
         # print("Reset Observation = " + str(observation))
         while not done and step < num_steps:
-            print("Steps: " + str(step))
             step+=1
             if observation[0] is not None:
                 
@@ -141,6 +141,7 @@ else:
                         plotLearning(x, scores, eps_history, filename)
                         exit()
             #print("Rewards = " + str(reward))
+        print("DONE: " + str(done))
         scores.append(score)
         total_score += score
         eps_history.append(agent.epsilon)
