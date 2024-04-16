@@ -323,6 +323,7 @@ class AgarEnv(gym.Env):
             if int(player[9]) == 1:
                 #return absolute coordinates
                 return player[2], player[4], player[5]
+        return None, None, None
             
     def get_closest_cell(self, players, curr_player_coords):
         closest_distance = math.inf
@@ -330,7 +331,7 @@ class AgarEnv(gym.Env):
         count_cells = 0
         coordinates_x = 0
         coordinates_y = 0
-        if len(players) != 0 and players[0] is not None and curr_player_coords is not None:
+        if len(players) != 0 and players[0] is not None and curr_player_coords[0] is not None and curr_player_coords[1] is not None:
             for cell in players[0]:
                 if cell[9] == 0:
                     count_cells += 1
@@ -348,7 +349,7 @@ class AgarEnv(gym.Env):
         count_food = 0
         coordinates_x = 0
         coordinates_y = 0
-        if foods is not None and curr_player_coords is not None:
+        if foods is not None and curr_player_coords[0] is not None and curr_player_coords[1] is not None:
             for food in foods:
                 distance = np.sqrt((food[2] - curr_player_coords[0]) ** 2 + (food[3] - curr_player_coords[1]) ** 2)
                 count_food += 1
@@ -365,7 +366,7 @@ class AgarEnv(gym.Env):
         coordinates_x = 0
         coordinates_y = 0
 
-        if viruses is not None and curr_player_coords is not None:
+        if viruses is not None and curr_player_coords[0] is not None and curr_player_coords[1] is not None:
             for virus in viruses:
                 distance = np.sqrt((virus[4] - curr_player_coords[0]) ** 2 + (virus[5] - curr_player_coords[1]) ** 2)
                 count_virus += 1
