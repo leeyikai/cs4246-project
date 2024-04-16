@@ -11,21 +11,21 @@ num_agents = 1
 render = False
 train = True
 test = False
+load_model = True
 data_path = "agar_model_13.pth"
-img_path = "agar_model_base.img"
+img_path = "agar_model_base.jpg"
 output_path = "output_base.txt"
-load_model = False
 num_bots = 200
 num_steps = 1000
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
-agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
+agent = Agent(gamma=0.99, epsilon=0.7, batch_size=64, n_actions=160, eps_end=0.001,
                   input_dims=[13], lr=0.00001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
-n_games = 500
+n_games = 100
 n_test_games = 10
 total_score = 0
 step = 1
