@@ -26,8 +26,11 @@ class AgarEnv(gym.Env):
 
         # factors for reward
         self.mass_reward_eps = 0.001  # make the max mass reward < 100 (max mass = 22500)
+        self.mass_growth_reward_eps = 10
         self.kill_reward_eps = 200
         self.killed_reward_eps = 1000
+
+        self.prev_mass = 0
 
     def step(self, actions, reward):
         for agent in self.agents:
@@ -46,7 +49,7 @@ class AgarEnv(gym.Env):
         #if rewards - reward > 0:
             # print("Grew in size")
             #rewards += 5
-        if self.agents[0].isRemoved == True:
+        if len(self.agents[0].cells) == 0:
             done = True
         info = {}
         return observations, rewards, done, info
@@ -61,6 +64,7 @@ class AgarEnv(gym.Env):
         self.viewer = None
         self.server.Update()
         observations = self.parse_obs(self.agents[0])
+        self.prev_mass = sum([c.mass for c in self.agents[0].cells])
         return observations
 
     def parse_obs(self, player):
@@ -137,18 +141,21 @@ class AgarEnv(gym.Env):
             return cell.cellType, features_food
 
     def parse_reward(self, player):
-        mass_reward, kill_reward, killed_reward = self.calc_reward(player)
+        mass_reward, mass_change_reward, kill_reward, killed_reward = self.calc_reward(player)
         # reward for being --- big, not dead, eating part of others, killing all of others, not be eaten by someone
         reward = mass_reward * self.mass_reward_eps + \
+                 mass_change_reward * self.mass_growth_reward_eps + \
                  kill_reward * self.kill_reward_eps + \
                  killed_reward * self.killed_reward_eps
         return reward
 
     def calc_reward(self, player):
         mass_reward = sum([c.mass for c in player.cells])
+        mass_change_reward = mass_reward - self.prev_mass
         kill_reward = player.killreward
         killedreward = player.killedreward
-        return mass_reward, kill_reward, killedreward
+        self.prev_mass = mass_reward
+        return mass_reward, mass_change_reward, kill_reward, killedreward
 
     def render(self, playeridx, mode = 'human'):
         # time.sleep(0.001)
