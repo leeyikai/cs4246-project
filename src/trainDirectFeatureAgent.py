@@ -161,6 +161,12 @@ for iterNum in range(trainingConfig.numIters):
             # Abit confusing, but nextFullStateEncodings is the state encodings of this state. The reason why we have the
             # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
             ejectCooldown = env.server.getEjectCooldown(agent)
+            nextStateEncodings = None
+            nextFullStateEncodings = None
+            nextAction = None
+            nextLogProb = None
+            nextEntropy = None
+            nextValue = None
             if not resetEnvironment:
                 nextStateEncodings = model.getSingleFrameEncoding(observations, ejectCooldown, device)
                 nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action)
@@ -178,6 +184,9 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment
             )
             
+            if resetEnvironment:
+                continue
+
             currStateEncodings = nextStateEncodings
             fullStateEncodings = nextFullStateEncodings
             action = nextAction

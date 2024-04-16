@@ -39,7 +39,10 @@ class ReplayBuffer():
         self.values[self.addedCount] = value
         self.rewards[self.addedCount] = reward
         
-        self.advantages[self.addedCount] = int(not isTerminal) * self.gamma * nextValue + reward - value
+        if nextValue is not None:
+            self.advantages[self.addedCount] = int(not isTerminal) * self.gamma * nextValue + reward - value
+        else:
+            self.advantages[self.addedCount] = reward - value
         self.addedCount += 1
 
     def isFilled(self):
