@@ -25,7 +25,7 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 10  # make the max mass reward < 100
+        self.mass_reward_eps = 0.001  # make the max mass reward < 100 (max mass = 22500)
         self.kill_reward_eps = 100
         self.killed_reward_eps = 100
 
@@ -43,9 +43,9 @@ class AgarEnv(gym.Env):
         observations = self.split_observation(observations)
 
         rewards = np.array([self.parse_reward(agent) for agent in self.agents])
-        if rewards - reward > 0:
+        #if rewards - reward > 0:
             # print("Grew in size")
-            rewards += 5
+            #rewards += 5
         if self.agents[0].isRemoved == True:
             done = True
         info = {}
@@ -322,8 +322,7 @@ class AgarEnv(gym.Env):
         count_cells = 0
         coordinates_x = 0
         coordinates_y = 0
-        print(players)
-        if players[0] is not None and curr_player_coords is not None:
+        if len(players) != 0 and players[0] is not None and curr_player_coords is not None:
             for cell in players[0]:
                 if cell[9] == 0:
                     count_cells += 1

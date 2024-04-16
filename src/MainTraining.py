@@ -10,12 +10,13 @@ import tqdm
 num_agents = 1
 render = False
 train = True
-test = False
-data_path = "agar_model_test.pth"
-img_path = "agar_model_test.img"
-load_model = False
+test = True
+data_path = "agar_model_base.pth"
+img_path = "agar_model_base.img"
+output_path = "output_base.txt"
+load_model = True
 num_bots = 200
-num_steps = 1000
+num_steps = 10000
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
@@ -55,6 +56,7 @@ if test:
                         window = env.viewer.window
                 if observation[0] is not None:
                     action, choice = agent.choose_action(observation)
+                    print("action: " + str(action))
                     if action <= 40:
                         degree = action * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
@@ -94,13 +96,13 @@ else:
         observation = env.split_observation(observation)
         # print("Reset Observation = " + str(observation))
         while not done and step < num_steps:
-            print("Steps: " + str(step))
+            #print("Steps: " + str(step))
             step+=1
             if observation[0] is not None:
                 
                 if step % 100 == 0:
                     print('step', step)
-                    print(time.time() - start)
+                    #print(time.time() - start)
                     start = time.time()
                 if render:
                     env.render(0)
@@ -148,7 +150,7 @@ else:
             avg_score = total_score / i
         else:
             avg_score = total_score
-        with open("output.txt", "a") as f:
+        with open(output_path, "a") as f:
             f.write("episode " + str(i) + " score " + str(score) + " average score " + str(avg_score) + " epsilon " + str(agent.epsilon) + "\n")
         print("RESULT OF GAME: ", str(i))
         print('episode ', i, 'score %.2f' % score,
