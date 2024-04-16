@@ -10,19 +10,19 @@ import tqdm
 num_agents = 1
 render = False
 train = True
-test = True
-data_path = "agar_model_base.pth"
+test = False
+data_path = "agar_model_13.pth"
 img_path = "agar_model_base.img"
 output_path = "output_base.txt"
-load_model = True
+load_model = False
 num_bots = 200
-num_steps = 10000
+num_steps = 1000
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
 agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.001,
-                  input_dims=[10], lr=0.00001, load_model=load_model, model_path=data_path)
+                  input_dims=[13], lr=0.00001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
 n_games = 500
@@ -98,7 +98,7 @@ else:
         while not done and step < num_steps:
             #print("Steps: " + str(step))
             step+=1
-            if observation[0] is not None:
+            if observation[0] is not None and observation[11] is not None:
                 
                 if step % 100 == 0:
                     print('step', step)
@@ -156,7 +156,7 @@ else:
         print("RESULT OF GAME: ", str(i))
         print('episode ', i, 'score %.2f' % score,
                 'average score %.2f' % avg_score,
-                'epsilon %.2f' % agent.epsilon)
+                'epsilon %.5f' % agent.epsilon)
     T.save(agent.Q_eval.state_dict(), data_path)
     x = [i+1 for i in range(n_games)]
     filename = img_path
