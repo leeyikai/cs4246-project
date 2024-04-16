@@ -25,7 +25,7 @@ class AgarEnv(gym.Env):
         self.gamemode = gamemode
 
         # factors for reward
-        self.mass_reward_eps = 0.001  # make the max mass reward < 100
+        self.mass_reward_eps = 0.001  # make the max mass reward < 100 (max mass = 22500)
         self.kill_reward_eps = 100
         self.killed_reward_eps = 100
 
@@ -43,6 +43,9 @@ class AgarEnv(gym.Env):
         observations = self.split_observation(observations)
 
         rewards = np.array([self.parse_reward(agent) for agent in self.agents])
+        #if rewards - reward > 0:
+            # print("Grew in size")
+            #rewards += 5
         if self.agents[0].isRemoved == True:
             done = True
         info = {}
@@ -319,17 +322,16 @@ class AgarEnv(gym.Env):
         count_cells = 0
         coordinates_x = 0
         coordinates_y = 0
-        if len(players) > 0:
-            if players[0] is not None and curr_player_coords is not None:
-                for cell in players[0]:
-                    if cell[9] == 0:
-                        count_cells += 1
-                        distance = np.sqrt((cell[4] - curr_player_coords[0]) ** 2 + (cell[5] - curr_player_coords[1])** 2)
-                        if distance < closest_distance:
-                            coordinates_x = cell[4]
-                            coordinates_y = cell[5]
-                            closest_distance = distance
-                            size = cell[2]
+        if len(players) != 0 and players[0] is not None and curr_player_coords is not None:
+            for cell in players[0]:
+                if cell[9] == 0:
+                    count_cells += 1
+                    distance = np.sqrt((cell[4] - curr_player_coords[0]) ** 2 + (cell[5] - curr_player_coords[1])** 2)
+                    if distance < closest_distance:
+                        coordinates_x = cell[4]
+                        coordinates_y = cell[5]
+                        closest_distance = distance
+                        size = cell[2]
         return count_cells, coordinates_x,coordinates_y, size
     
     def get_closest_food(self, foods, curr_player_coords):
