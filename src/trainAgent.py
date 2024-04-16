@@ -55,18 +55,15 @@ if torch.cuda.is_available():
   device = torch.device("cuda:0")
 
 # Load model
-model = None
-if trainingConfig.startFromScratch:
-    model = PPOModel(
-        usePrevFrame = trainingConfig.usePrevFrame,
-        usePrevAction = trainingConfig.usePrevAction
-    )
-else:
-    model = PPOModel.fromFile(
-        trainingConfig.modelLoadDir,
-        usePrevFrame = trainingConfig.usePrevFrame,
-        usePrevAction = trainingConfig.usePrevAction
-    )
+model = PPOModel(
+    numDirections = trainingConfig.numDirections,
+    usePrevFrame = trainingConfig.usePrevFrame,
+    usePrevAction = trainingConfig.usePrevAction,
+    trainFeatureExtractor = trainingConfig.trainFeatureExtractor
+)
+
+if not trainingConfig.startFromScratch:
+    model.loadFromFile(trainingConfig.modelLoadPath)
 model = model.to(device)
 
 # Prepare replay buffer
@@ -104,13 +101,15 @@ writer = SummaryWriter()
 totalReward = 0
 
 stepNum = 0
+totalSteps = 0
 for iterNum in range(trainingConfig.numIters):
     with torch.no_grad():
         model.eval()
         while not buffer.isFilled():
             stepNum += 1
-            if stepNum % 32 == 0:
-                print(f'Iter {iterNum + 1}, step {stepNum + 1}')
+            totalSteps += 1
+            if totalSteps % 100 == 0:
+                print(f'Iter {iterNum + 1}, totalSteps {totalSteps + 1}')
 
             if (resetEnvironment):
                 # Reset the environment
@@ -145,18 +144,6 @@ for iterNum in range(trainingConfig.numIters):
             nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
             nextValue = model.getValue(nextFullStateEncodings)
 
-            if agent.isRemoved:
-                print("Agent died! Resetting environment")
-                resetEnvironment = True
-                window.close()
-                window = None
-
-                # Write to tensorboard
-                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
-                writer.flush()
-                totalReward = 0
-                gameNumber += 1
-            
             # Add to replay buffer
             buffer.addEntry(
                 fullStateEncodings, # Frm prev iter
@@ -168,8 +155,18 @@ for iterNum in range(trainingConfig.numIters):
                 resetEnvironment
             )
 
-            totalReward += rewards[0]
+            if agent.isRemoved or stepNum == trainingConfig.maxSteps:
+                print("Agent died or stepNum == maxSteps! Resetting environment")
+                resetEnvironment = True
+                window.close()
+                window = None
 
+                # Write to tensorboard
+                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
+                writer.flush()
+                totalReward = 0
+                gameNumber += 1
+            
             currStateEncodings = nextStateEncodings
             fullStateEncodings = nextFullStateEncodings
             action = nextAction
@@ -180,6 +177,7 @@ for iterNum in range(trainingConfig.numIters):
             # Get the player action vec, and step the environment to get the rewards for this iteration
             playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
             observations, rewards, done, info = env.step(playerActionVec)
+            totalReward += rewards[0]
 
 
     # MODEL OPTIMIZATION

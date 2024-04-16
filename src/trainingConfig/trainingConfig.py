@@ -1,5 +1,6 @@
 # Training environment things
 numBots = 10
+maxSteps = 1000 # Set to -1 if you want infinite number of steps
 
 # Rewards!
 massRewardCoeff = 0
@@ -22,12 +23,16 @@ batchSize = 64
 replayBufferSize = 256
 learningRate = 1e-3
 maxGradNorm = 10
+trainFeatureExtractor = True
 
 # Model save and load paths
 startFromScratch = False
 modelSaveDir = "src/models/checkpoints"
-modelLoadDir = "src/models/checkpoints/latest.pt"
+modelLoadPath = "src/models/checkpoints/latest.pt"
 
 # Feature options
 usePrevFrame = False
 usePrevAction = True
+
+# Agent options
+numDirections = 16

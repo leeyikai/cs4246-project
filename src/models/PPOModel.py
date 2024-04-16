@@ -11,7 +11,13 @@ import torchvision.models as models
 
 class PPOModel(torch.nn.Module):
 
-    def __init__(self, numDirections = 16, usePrevFrame: bool = True, usePrevAction : bool = True):
+    def __init__(
+        self, 
+        numDirections: int = 16,
+        usePrevFrame: bool = True, 
+        usePrevAction: bool = True,
+        trainFeatureExtractor: bool = True,
+    ):
         super().__init__()
         self.numActions = numDirections + 2 # number of movement directions + split + shoot
         self.imageEncoderOutputDims = 1280
@@ -21,13 +27,14 @@ class PPOModel(torch.nn.Module):
         self.featureDims = self.singleFrameFeatureDim + int(usePrevFrame) * self.singleFrameFeatureDim + \
             int(usePrevAction) * self.prevActionFeatureScaleFactor
         
+        self.usePrevFrame = usePrevFrame
+        self.usePrevAction = usePrevAction
+        self.trainFeatureExtractor = trainFeatureExtractor
+
         self.initImagePreprocessor()
         self.initImageEncoder()
         self.initActor()
         self.initCritic()
-
-        self.usePrevFrame = usePrevFrame
-        self.usePrevAction = usePrevAction
 
        
     # Returns transforms that convert the gameview to a tensor ready to be processed
@@ -54,7 +61,12 @@ class PPOModel(torch.nn.Module):
         imageEncoderLayers = list(efficientNet.features.children())
         imageEncoderLayers.append(torch.nn.AdaptiveAvgPool2d(1))
 
-        for layer in imageEncoderLayers:
+        # Enable training of last layer of image encoder 
+        layersToDisableGrad = imageEncoderLayers
+        if self.trainFeatureExtractor:
+            layersToDisableGrad = imageEncoderLayers[:-2]
+
+        for layer in layersToDisableGrad:
             for layerParam in layer.parameters():
                 layerParam.requires_grad = False
         
@@ -126,11 +138,5 @@ class PPOModel(torch.nn.Module):
     def saveToFile(self, filePath):
         torch.save(self, filePath)
 
-    @classmethod
-    def fromFile(cls, filePath, usePrevFrame, usePrevAction):
-        model = PPOModel(
-            usePrevFrame = usePrevFrame,
-            usePrevAction = usePrevAction
-        )
-        model.load_state_dict(torch.load(filePath))
-        return model
+    def loadFromFile(self, filePath):
+        self.load_state_dict(torch.load(filePath))
