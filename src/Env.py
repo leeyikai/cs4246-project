@@ -40,7 +40,11 @@ class AgarEnv(gym.Env):
         #     agent.step(action)
         for bot in self.bots:
             bot.step()
-        done = False
+
+        if len(self.agents) == 0:
+            done = True
+        else:
+            done = False
         self.server.Update()
         observations = self.parse_obs(self.agents[0])
         observations = self.split_observation(observations)
@@ -150,6 +154,7 @@ class AgarEnv(gym.Env):
         return reward
 
     def calc_reward(self, player):
+
         mass_reward = sum([c.mass for c in player.cells])
         mass_change_reward = mass_reward - self.prev_mass
         kill_reward = player.killreward

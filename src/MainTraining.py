@@ -68,7 +68,7 @@ if test:
                     elif action <= 80:
                         degree = (action - 40) * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                        action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                        action1 = [np.cos(degree), np.sin(degree), 0, 0]
                     elif action <= 120:
                         degree = (action - 80) * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
@@ -76,7 +76,7 @@ if test:
                     else:
                         degree = (action - 120) * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
-                        action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                        action1 = [np.cos(degree), np.sin(degree), 1, 0]
                     observation_, reward, done, info = env.step(action1, reward)
                     # print("Reward = " + str(reward))
                     score += reward[0]
