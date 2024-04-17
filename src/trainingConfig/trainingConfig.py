@@ -21,9 +21,17 @@ numIters = 1000
 numEpochs = 16
 batchSize = 16
 replayBufferSize = 128
+
 learningRate = 1e-3
+base_lr = 1e-3
+max_lr = 1e-2
+min_lr=1e-7
+stepSize_lr = 80
+cyclical_lr = False
+decay_lr = True
+
 maxGradNorm = 10
-trainFeatureExtractor = True
+trainFeatureExtractor = False
 
 # Model save and load paths
 startFromScratch = True
@@ -32,7 +40,7 @@ modelLoadPath = "src/models/checkpoints/latest.pt"
 
 # Feature options
 usePrevFrame = False
-usePrevAction = True
+usePrevAction = False
 
 # Agent options
 numDirections = 16
