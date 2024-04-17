@@ -39,6 +39,7 @@ class PlayerCell(Cell):
     def onEat(self, prey):
         if prey.cellType == 0:
             self.owner.killreward += prey.mass
+            self.
         super().onEat(prey)
 
     def onEaten(self, hunter):
