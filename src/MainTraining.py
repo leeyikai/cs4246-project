@@ -6,33 +6,36 @@ from DeepQTrainer import Agent
 from utils import plotLearning
 import torch as T
 import tqdm
+from Config import SPEED_MULTIPLIER
 
 num_agents = 1
-render = False
+render = True
 train = True
 test = False
-load_model = True
-data_path = "agar_model_13.pth"
-img_path = "agar_model_base.jpg"
-output_path = "output_base.txt"
+data_path = "agar_model_clocked_base10.pth"
+img_path = "agar_model_clocked_base10.png"
+output_path = "output_clocked_base10.txt"
+load_model = False
 num_bots = 200
 num_steps = 1000
+step_rate = 5 # 5 Hz, 5 steps per second
+step_time = 1/(step_rate * SPEED_MULTIPLIER) * 1000000000 # in nanoseconds
 gamemode = 0
 env = AgarEnv(num_agents, num_bots, gamemode)
 #env.seed(0)
 
-agent = Agent(gamma=0.99, epsilon=0.7, batch_size=64, n_actions=160, eps_end=0.001,
-                  input_dims=[13], lr=0.00001, load_model=load_model, model_path=data_path)
+agent = Agent(gamma=0.99, epsilon=1.0, batch_size=64, n_actions=160, eps_end=0.01,
+                  input_dims=[13], lr=0.001, load_model=load_model, model_path=data_path)
 
 scores, eps_history = [], []
-n_games = 100
+n_games = 500
 n_test_games = 10
 total_score = 0
-step = 1
+step = 0
 window = None
 action = np.zeros((num_agents, 3))
 
-start = time.time()
+start = time.perf_counter_ns()
 #implement tqdm for progress bar
 
 if test:
@@ -44,18 +47,20 @@ if test:
         reward = 0
         observation = env.reset()
         observation = env.split_observation(observation)
-        
+        start = time.perf_counter_ns()
         while not done and step < num_steps:
-            step += 1
-            if observation[0] is not None:
-                
-                if render:
-                    env.render(0)
-                    if not window:
-                        window = env.viewer.window
+            if (time.perf_counter_ns() - start < step_time):
+                continue
+            else:
+                start = time.perf_counter_ns()
+                step += 1
                 if observation[0] is not None:
+                    if render:
+                        env.render(0)
+                        if not window:
+                            window = env.viewer.window
                     action, choice = agent.choose_action(observation)
-                    print("Action: " + str(action))
+                    # print("Action: " + str(action))
                     if action <= 40:
                         degree = action * 9
                         print("X = " + str(np.cos(degree)) + " Y = " + str(np.sin(degree)))
@@ -94,55 +99,59 @@ else:
         reward = 0
         observation = env.reset()
         observation = env.split_observation(observation)
+        start = time.perf_counter_ns()
         # print("Reset Observation = " + str(observation))
         while not done and step < num_steps:
-            #print("Steps: " + str(step))
-            step+=1
-            if observation[0] is not None and observation[11] is not None:
-                
-                if step % 100 == 0:
-                    print('step', step)
-                    #print(time.time() - start)
-                    start = time.time()
-                if render:
-                    env.render(0)
-                    if not window:
-                        window = env.viewer.window
-                try:
-                    action, choice = agent.choose_action(observation)
-                    if action <= 40:
-                        degree = action * 9
-                        action1 = [np.cos(degree), np.sin(degree), 0, 0]
-                    elif action <= 80:
-                        degree = (action - 40) * 9
-                        action1 = [np.cos(degree), np.sin(degree), 0, 1]
-                    elif action <= 120:
-                        degree = (action - 80) * 9
-                        action1 = [np.cos(degree), np.sin(degree), 1, 0]
-                    else:
-                        degree = (action - 120) * 9
-                        action1 = [np.cos(degree), np.sin(degree), 1, 1]
+            if (time.perf_counter_ns() - start < step_time):
+                continue
+            else:
+                #print("Steps: " + str(step))
+                start = time.perf_counter_ns()
+                #print(start)
+                step+=1
+                if observation[0] is not None and observation[11] is not None:
                     
-                    observation_, reward, done, info = env.step(action1, reward)
-                    # print("Reward = " + str(reward))
-                    score += reward[0]
-                    agent.store_transition(observation, action, reward, 
-                                                observation_, done)
-                    agent.learn()
-                    observation = observation_
+                    if step % 100 == 0:
+                        print('step', step)
+                    if render:
+                        env.render(0)
+                        if not window:
+                            window = env.viewer.window
+                    try:
+                        action, choice = agent.choose_action(observation)
+                        if action <= 40:
+                            degree = action * 9
+                            action1 = [np.cos(degree), np.sin(degree), 0, 0]
+                        elif action <= 80:
+                            degree = (action - 40) * 9
+                            action1 = [np.cos(degree), np.sin(degree), 0, 1]
+                        elif action <= 120:
+                            degree = (action - 80) * 9
+                            action1 = [np.cos(degree), np.sin(degree), 1, 0]
+                        else:
+                            degree = (action - 120) * 9
+                            action1 = [np.cos(degree), np.sin(degree), 1, 1]
+                        
+                        observation_, reward, done, info = env.step(action1, reward)
+                        # print("Reward = " + str(reward))
+                        score += reward[0]
+                        agent.store_transition(observation, action, reward, 
+                                                    observation_, done)
+                        agent.learn()
+                        observation = observation_
 
-                    # action[0][2] = 0
-                    
-                except KeyboardInterrupt:
-                    if train:
-                        print("Saving Model?")
-                        T.save(agent.Q_eval.state_dict(), data_path)
-                        print("Model Saved")
-                        x = [i+1 for i in range(n_games)]
-                        filename = img_path
-                        plotLearning(x, scores, eps_history, filename)
-                        exit()
-            #print("Rewards = " + str(reward))
+                        # action[0][2] = 0
+                        
+                    except KeyboardInterrupt:
+                        if train:
+                            print("Saving Model?")
+                            T.save(agent.Q_eval.state_dict(), data_path)
+                            print("Model Saved")
+                            x = [i+1 for i in range(n_games)]
+                            filename = img_path
+                            plotLearning(x, scores, eps_history, filename)
+                            exit()
+                #print("Rewards = " + str(reward))
         print("DONE: " + str(done))
         scores.append(score)
         total_score += score
