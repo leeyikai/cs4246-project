@@ -19,6 +19,7 @@ class Player:
         self.lastEject = None
         self.killreward = 0
         self.killedreward = 0
+        self.pellets_eaten = 0
 
         if gameServer:
                 gameServer.lastPlayerId += 1
@@ -42,10 +43,8 @@ class Player:
         # assert np.sum(action[2:]) == 1
         if action[2] == 1:
             self.pressSpace()
-        elif action[2] == 2:
+        elif action[3] == 1:
             self.pressW()
-        elif action[2] == 0:
-            pass
 
         # self.updateView()
 
