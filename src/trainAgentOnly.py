@@ -10,6 +10,18 @@ from torch.utils.tensorboard import SummaryWriter
 from torchviz import make_dot
 import pydot
 
+def cyclical_lr(step, base_lr=1e-3, max_lr=1e-2, step_size=trainingConfig.stepSize_lr, mode="triangular"):
+    cycle = np.floor(1 + step / (2 * step_size))
+    x = np.abs(step / step_size - 2 * cycle + 1)
+    if mode == "triangular":
+        lr = base_lr + (max_lr - base_lr) * np.maximum(0, (1 - x))
+    return lr
+
+def linear_decay_lr(current_step, initial_lr, min_lr, total_steps):
+    if current_step >= total_steps:
+        return min_lr
+    return initial_lr - (initial_lr - min_lr) * (current_step / total_steps)
+
 def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirections: int = 16):
     action = int(action.cpu().numpy())
     actionVec = prevActionVec
@@ -38,6 +50,7 @@ env = AgarEnv(
     num_bots = trainingConfig.numBots, 
     gamemode = 0
 )
+
 env.configureRewardCoeffs(
     trainingConfig.massRewardCoeff,
     trainingConfig.killRewardCoeff,
@@ -80,7 +93,7 @@ buffer = ReplayBuffer(
 # Initialize optimizer
 optimizer = torch.optim.Adam(
     filter(lambda p: p.requires_grad, model.parameters()),
-    lr = trainingConfig.learningRate
+    lr = trainingConfig.base_lr
 )
 
 # Initialize training variables
@@ -102,14 +115,28 @@ gameNumber = 1
 writer = SummaryWriter()
 totalReward = 0
 
+batches_per_epoch = -(-trainingConfig.replayBufferSize // trainingConfig.batchSize)  # Using ceiling division
+totalEndSteps = trainingConfig.numIters * trainingConfig.numEpochs * batches_per_epoch
+
 stepNum = 0
 totalSteps = 0
+
 for iterNum in range(trainingConfig.numIters):
     with torch.no_grad():
         model.eval()
         while not buffer.isFilled():
             stepNum += 1
             totalSteps += 1
+
+            if trainingConfig.cyclical_lr:
+                current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
+            
+            if trainingConfig.decay_lr:
+                current_lr = current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
+
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = current_lr
+
             if totalSteps % 100 == 0:
                 print(f'Iter {iterNum + 1}, totalSteps {totalSteps + 1}')
 
@@ -188,11 +215,23 @@ for iterNum in range(trainingConfig.numIters):
     model.train()
     for epochNum in range(trainingConfig.numEpochs):
         indices = np.arange(trainingConfig.replayBufferSize)
+        epsilon = trainingConfig.EPSClip
 
         totalPolicyLoss = 0
         totalValueLoss = 0
         totalLoss = 0
         for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
+
+            if trainingConfig.cyclical_lr:
+                current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
+            
+            if trainingConfig.decay_lr:
+                current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
+            
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = current_lr
+            writer.add_scalar("LearningRate", current_lr, totalSteps)
+
             optimizer.zero_grad()
             
             endIndice = startIndice + trainingConfig.batchSize
@@ -211,8 +250,8 @@ for iterNum in range(trainingConfig.numIters):
             policyLoss1 = normalizedAdvantages * ratio
             policyLoss2 = normalizedAdvantages * torch.clamp(
                 ratio,
-                1 - trainingConfig.EPSClip,
-                1 + trainingConfig.EPSClip
+                1 - epsilon,
+                1 + epsilon
             )
             policyLoss = -torch.mean(torch.minimum(policyLoss1, policyLoss2))
 
@@ -223,8 +262,8 @@ for iterNum in range(trainingConfig.numIters):
 
             newValuesClipped = buffer.values[batchIndices] + torch.clamp(
                 newValues - buffer.values[batchIndices],
-                -trainingConfig.EPSClip,
-                trainingConfig.EPSClip
+                -epsilon,
+                epsilon
             )
             valueLossClipped = torch.square(newValuesClipped - returns)
             valueLoss = torch.mean(torch.maximum(valueLossUnclipped, valueLossClipped))
@@ -244,6 +283,8 @@ for iterNum in range(trainingConfig.numIters):
 
             torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
             optimizer.step()
+        
+        epsilon = epsilon * 0.99 # annealed clip range
 
         with torch.no_grad():
             divFactor = trainingConfig.replayBufferSize / trainingConfig.batchSize
