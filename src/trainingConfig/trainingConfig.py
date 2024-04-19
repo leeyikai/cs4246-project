@@ -1,14 +1,15 @@
 # Training environment things
-numBots = 0
+numBots = 200
 maxSteps = 1000 # Set to -1 if you want infinite number of steps
 
 # Rewards!
-massRewardCoeff = 0
+massRewardCoeff = 0.1
 killRewardCoeff = 10
-consumptionRewardCoeff = 0.5
-killedPenaltyCoeff = 0 # I j want a flat penalty when dying
-deadPenalty = 100
+consumptionRewardCoeff = 0.1
+killedPenaltyCoeff = 10
+deadPenalty = 50
 passivePenalty = 0
+
 
 # Loss function things
 EPSClip = 0.2
@@ -17,14 +18,14 @@ valueCoeff = 0.1
 
 # Learning things
 gamma = 0.99
-numIters = 1000
-numEpochs = 16
+numIters = 1
+numEpochs = 32
 batchSize = 16
-replayBufferSize = 128
+replayBufferSize = 256
 
 learningRate = 1e-3
 base_lr = 1e-3
-max_lr = 1e-2
+max_lr=1e-2
 min_lr=1e-7
 stepSize_lr = 80
 cyclical_lr = False

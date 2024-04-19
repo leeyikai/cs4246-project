@@ -122,7 +122,7 @@ class GameServer:
         #     player.playerTracker.sendUpdate()
 
     def Update(self):
-        skipstep = 8
+        skipstep = 2
         for i in range(skipstep):
             self.WorldStep()
 

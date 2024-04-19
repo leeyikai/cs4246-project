@@ -4,11 +4,17 @@ from Env import AgarEnv
 from models.VisionPPOModel import VisionPPOModel
 from models.ReplayBuffer import ReplayBuffer
 import torch
-import math 
+import math
+import time
 from trainingConfig import trainingConfig
+from Config import SPEED_MULTIPLIER
+
 from torch.utils.tensorboard import SummaryWriter
 from torchviz import make_dot
 import pydot
+
+step_rate = 5 # 5 Hz, 5 steps per second
+step_time = 1/(step_rate * SPEED_MULTIPLIER) * 1000000000 # in nanoseconds  
 
 def cyclical_lr(step, base_lr=1e-3, max_lr=1e-2, step_size=trainingConfig.stepSize_lr, mode="triangular"):
     cycle = np.floor(1 + step / (2 * step_size))
@@ -28,12 +34,10 @@ def getAgentActionVec(action: torch.Tensor, prevActionVec: np.ndarray, numDirect
 
     if action == numDirections:
         # Split action
-        # actionVec[2] = 1
-        actionVec[2] = 0
+        actionVec[2] = 1
     elif action == numDirections + 1:
         # Eject action
-        # actionVec[2] = 2
-        actionVec[2] = 0
+        actionVec[2] = 2
     else:
         # Movement
         actionVec[2] = 0
@@ -120,169 +124,180 @@ totalEndSteps = trainingConfig.numIters * trainingConfig.numEpochs * batches_per
 
 stepNum = 0
 totalSteps = 0
+start = time.perf_counter_ns()
 
 for iterNum in range(trainingConfig.numIters):
     with torch.no_grad():
         model.eval()
         while not buffer.isFilled():
-            stepNum += 1
-            totalSteps += 1
+            if stepNum >= trainingConfig.maxSteps:
+                break
+            if (time.perf_counter_ns() - start < step_time):
+                continue
+            else:
+                stepNum += 1
+                totalSteps += 1
 
-            if trainingConfig.cyclical_lr:
-                current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
-            
-            if trainingConfig.decay_lr:
-                current_lr = current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
-
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = current_lr
-
-            if totalSteps % 100 == 0:
-                print(f'Iter {iterNum + 1}, totalSteps {totalSteps + 1}')
-
-            if (resetEnvironment):
-                # Reset the environment
-                print("Resetting environment...")
-                env.reset()
-                agent = env.players[0]
-                ejectCooldown = 0
-                view = env.render(0, mode = "rgb_array")
+                if trainingConfig.cyclical_lr:
+                    current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
                 
-                currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
-                prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
-                prevAction = torch.tensor([0]).to(device) # Assume that the prev action is 0
-                fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction, device)
-                action, logProb, entropy = model.getAction(fullStateEncodings)
-                value = model.getValue(fullStateEncodings)
+                if trainingConfig.decay_lr:
+                    current_lr = current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
 
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = current_lr
+
+                if totalSteps % 100 == 0:
+                    print(f'Iter {iterNum + 1}, totalSteps {totalSteps + 1}')
+
+                if (resetEnvironment):
+                    # Reset the environment
+                    print("Resetting environment...")
+                    env.reset()
+                    agent = env.players[0]
+                    ejectCooldown = 0
+                    view = env.render(0, mode = "rgb_array")
+                    
+                    currStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
+                    prevStateEncodings = currStateEncodings.clone() # Assume that the prev state is the same when starting out
+                    prevAction = torch.tensor([0]).to(device) # Assume that the prev action is 0
+                    fullStateEncodings = model.getFullStateEncoding(prevStateEncodings, currStateEncodings, prevAction, device)
+                    action, logProb, entropy = model.getAction(fullStateEncodings)
+                    value = model.getValue(fullStateEncodings)
+
+                    playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
+                    observations, rewards, done, info = env.step(playerActionVec)
+                    resetEnvironment = agent.isRemoved
+                    continue
+
+                # Render a new window if need be
+                view = env.render(0, mode = "rgb_array")
+                if not window:
+                    window = env.viewer.window
+                
+                # Abit confusing, but nextFullStateEncodings is the state encodings of this state. The reason why we have the
+                # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
+                ejectCooldown = env.server.getEjectCooldown(agent)
+                nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
+                nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action, device)
+                nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
+                nextValue = model.getValue(nextFullStateEncodings)
+
+                # Add to replay buffer
+                buffer.addEntry(
+                    encodedObservation = fullStateEncodings, # Frm prev iter
+                    action = action, # Frm prev iter
+                    logProb = logProb, # Frm prev iter
+                    value = value, # Frm prev iter
+                    nextValue = nextValue, # Frm curr iter, the value of curr state to calculate advantage
+                    reward = torch.tensor([rewards[0]]).to(device), # Frm prev iter
+                    isTerminal = resetEnvironment
+                )
+
+                if agent.isRemoved or stepNum == trainingConfig.maxSteps:
+                    print("Agent died or stepNum == maxSteps! Resetting environment")
+                    resetEnvironment = True
+                    window.close()
+                    window = None
+
+                    # Write to tensorboard
+                    writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
+                    writer.flush()
+                    totalReward = 0
+                    gameNumber += 1
+                    stepNum = 0
+                
+                currStateEncodings = nextStateEncodings
+                fullStateEncodings = nextFullStateEncodings
+                action = nextAction
+                logProbs = nextLogProb
+                value = nextValue
+                entropy = nextEntropy
+
+                # Get the player action vec, and step the environment to get the rewards for this iteration
                 playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
                 observations, rewards, done, info = env.step(playerActionVec)
-                resetEnvironment = agent.isRemoved
-                continue
-
-            # Render a new window if need be
-            view = env.render(0, mode = "rgb_array")
-            if not window:
-                window = env.viewer.window
-            
-            # Abit confusing, but nextFullStateEncodings is the state encodings of this state. The reason why we have the
-            # word next is cos we need to add the buffer entry of the PREVIOUS step, which relies on the value of this state
-            ejectCooldown = env.server.getEjectCooldown(agent)
-            nextStateEncodings = model.getSingleFrameEncoding(view, ejectCooldown, device)
-            nextFullStateEncodings = model.getFullStateEncoding(currStateEncodings, nextStateEncodings, action, device)
-            nextAction, nextLogProb, nextEntropy = model.getAction(nextFullStateEncodings)
-            nextValue = model.getValue(nextFullStateEncodings)
-
-            # Add to replay buffer
-            buffer.addEntry(
-                encodedObservation = fullStateEncodings, # Frm prev iter
-                action = action, # Frm prev iter
-                logProb = logProb, # Frm prev iter
-                value = value, # Frm prev iter
-                nextValue = nextValue, # Frm curr iter, the value of curr state to calculate advantage
-                reward = torch.tensor([rewards[0]]).to(device), # Frm prev iter
-                isTerminal = resetEnvironment
-            )
-
-            if agent.isRemoved or stepNum == trainingConfig.maxSteps:
-                print("Agent died or stepNum == maxSteps! Resetting environment")
-                resetEnvironment = True
-                window.close()
-                window = None
-
-                # Write to tensorboard
-                writer.add_scalar("totalReward/gameNumber", totalReward, gameNumber)
-                writer.flush()
-                totalReward = 0
-                gameNumber += 1
-                stepNum = 0
-            
-            currStateEncodings = nextStateEncodings
-            fullStateEncodings = nextFullStateEncodings
-            action = nextAction
-            logProbs = nextLogProb
-            value = nextValue
-            entropy = nextEntropy
-
-            # Get the player action vec, and step the environment to get the rewards for this iteration
-            playerActionVec[0] = getAgentActionVec(action, playerActionVec[0])
-            observations, rewards, done, info = env.step(playerActionVec)
-            totalReward += rewards[0]
-
+                totalReward += rewards[0]
 
     # MODEL OPTIMIZATION
     print("OPTIMIZING")
     model.train()
     for epochNum in range(trainingConfig.numEpochs):
-        indices = np.arange(trainingConfig.replayBufferSize)
-        epsilon = trainingConfig.EPSClip
+        if stepNum >= trainingConfig.maxSteps:
+            break
+        
+        if (time.perf_counter_ns() - start < step_time):
+                continue
+        else:
+            indices = np.arange(trainingConfig.replayBufferSize)
+            epsilon = trainingConfig.EPSClip
 
-        totalPolicyLoss = 0
-        totalValueLoss = 0
-        totalLoss = 0
-        for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
+            totalPolicyLoss = 0
+            totalValueLoss = 0
+            totalLoss = 0
+            for startIndice in range(0, trainingConfig.replayBufferSize, trainingConfig.batchSize):
 
-            if trainingConfig.cyclical_lr:
-                current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
-            
-            if trainingConfig.decay_lr:
-                current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
-            
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = current_lr
-            writer.add_scalar("LearningRate", current_lr, totalSteps)
+                if trainingConfig.cyclical_lr:
+                    current_lr = cyclical_lr(totalSteps, base_lr=trainingConfig.base_lr, max_lr=trainingConfig.max_lr, step_size=trainingConfig.stepSize_lr)
+                
+                if trainingConfig.decay_lr:
+                    current_lr = linear_decay_lr(stepNum, trainingConfig.base_lr, trainingConfig.min_lr, totalEndSteps)
+                
+                for param_group in optimizer.param_groups:
+                    param_group['lr'] = current_lr
+                writer.add_scalar("LearningRate", current_lr, totalSteps)
 
-            optimizer.zero_grad()
-            
-            endIndice = startIndice + trainingConfig.batchSize
-            batchIndices = indices[startIndice: endIndice]
+                optimizer.zero_grad()
+                
+                endIndice = startIndice + trainingConfig.batchSize
+                batchIndices = indices[startIndice: endIndice]
 
-            newLogProbs, newEntropy = model.getLogProbGivenAction(
-                buffer.encodedObservations[batchIndices],
-                buffer.actions[batchIndices]
-            )
-            logratio = newLogProbs - buffer.logProbs[batchIndices]
-            ratio = torch.exp(logratio)
-            advantages = buffer.advantages[batchIndices]
-            normalizedAdvantages = torch.nn.functional.normalize(advantages, dim = 0, eps = 1e-8)
+                newLogProbs, newEntropy = model.getLogProbGivenAction(
+                    buffer.encodedObservations[batchIndices],
+                    buffer.actions[batchIndices]
+                )
+                logratio = newLogProbs - buffer.logProbs[batchIndices]
+                ratio = torch.exp(logratio)
+                advantages = buffer.advantages[batchIndices]
+                normalizedAdvantages = torch.nn.functional.normalize(advantages, dim = 0, eps = 1e-8)
 
-            # Calculate policy loss. It is negated as we want to maximize instead of minimize
-            policyLoss1 = normalizedAdvantages * ratio
-            policyLoss2 = normalizedAdvantages * torch.clamp(
-                ratio,
-                1 - epsilon,
-                1 + epsilon
-            )
-            policyLoss = -torch.mean(torch.minimum(policyLoss1, policyLoss2))
+                # Calculate policy loss. It is negated as we want to maximize instead of minimize
+                policyLoss1 = normalizedAdvantages * ratio
+                policyLoss2 = normalizedAdvantages * torch.clamp(
+                    ratio,
+                    1 - epsilon,
+                    1 + epsilon
+                )
+                policyLoss = -torch.mean(torch.minimum(policyLoss1, policyLoss2))
 
-            # Calculate value loss
-            returns = advantages + buffer.values[batchIndices]
-            newValues = model.getValue(buffer.encodedObservations[batchIndices])
-            valueLossUnclipped = torch.square(newValues - returns)
+                # Calculate value loss
+                returns = advantages + buffer.values[batchIndices]
+                newValues = model.getValue(buffer.encodedObservations[batchIndices])
+                valueLossUnclipped = torch.square(newValues - returns)
 
-            newValuesClipped = buffer.values[batchIndices] + torch.clamp(
-                newValues - buffer.values[batchIndices],
-                -epsilon,
-                epsilon
-            )
-            valueLossClipped = torch.square(newValuesClipped - returns)
-            valueLoss = torch.mean(torch.maximum(valueLossUnclipped, valueLossClipped))
+                newValuesClipped = buffer.values[batchIndices] + torch.clamp(
+                    newValues - buffer.values[batchIndices],
+                    -epsilon,
+                    epsilon
+                )
+                valueLossClipped = torch.square(newValuesClipped - returns)
+                valueLoss = torch.mean(torch.maximum(valueLossUnclipped, valueLossClipped))
 
-            # Calculate entropy loss
-            entropyLoss = torch.mean(newEntropy)
+                # Calculate entropy loss
+                entropyLoss = torch.mean(newEntropy)
 
-            # Combine them losses
-            loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
+                # Combine them losses
+                loss = policyLoss - trainingConfig.entropyCoeff * entropyLoss + valueLoss * trainingConfig.valueCoeff
 
-            loss.backward()
+                loss.backward()
 
-            with torch.no_grad():
-                totalPolicyLoss += policyLoss
-                totalValueLoss += valueLoss
-                totalLoss += loss
+                with torch.no_grad():
+                    totalPolicyLoss += policyLoss
+                    totalValueLoss += valueLoss
+                    totalLoss += loss
 
-            torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
-            optimizer.step()
+                torch.nn.utils.clip_grad_norm(model.actor.parameters(), trainingConfig.maxGradNorm)
+                optimizer.step()
         
         epsilon = epsilon * 0.99 # annealed clip range
 
