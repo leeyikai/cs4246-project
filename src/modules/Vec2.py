@@ -50,9 +50,13 @@ class Vec2:
 
 
     def normalize(self):
-        if self.sqDist() == 0:
-             return self.scale(1/self.sqDist()+0.001)
-        return self.scale(1/self.sqDist())
+        sq_distance = self.sqDist()
+        if sq_distance < 1e-8: 
+            self.x=0
+            self.y=0
+            return self
+        else:
+            return self.scale(1 / (sq_distance ** 0.5))  # Correctly normalizes by magnitude
 
 
     def scale(self, scaleX, scaleY = None):
