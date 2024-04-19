@@ -50,6 +50,8 @@ class Vec2:
 
 
     def normalize(self):
+        if self.sqDist() == 0:
+             return self.scale(1/self.sqDist()+0.001)
         return self.scale(1/self.sqDist())
 
 
