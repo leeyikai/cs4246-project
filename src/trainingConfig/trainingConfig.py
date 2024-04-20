@@ -5,10 +5,10 @@ maxSteps = 1000 # Set to -1 if you want infinite number of steps
 # Rewards!
 massRewardCoeff = 0.1
 killRewardCoeff = 10
-consumptionRewardCoeff = 0.1
+consumptionRewardCoeff = 0.4
 killedPenaltyCoeff = 10
 deadPenalty = 50
-passivePenalty = 0
+passivePenalty = 0.1
 
 
 # Loss function things
