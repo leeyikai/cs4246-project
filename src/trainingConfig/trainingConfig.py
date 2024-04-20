@@ -18,7 +18,7 @@ valueCoeff = 0.1
 
 # Learning things
 gamma = 0.99
-numIters = 1000
+numIters = 500
 numEpochs = 32
 batchSize = 16
 replayBufferSize = 256
