@@ -56,7 +56,8 @@ class AgarEnv(gym.Env):
         if len(self.agents[0].cells) == 0:
             done = True
         info = {}
-        return observations, rewards, done, info
+        mass = sum([c.mass for c in self.agents[0].cells])
+        return observations, rewards, done, info, mass
 
     def reset(self):
         self.server = GameServer()
@@ -317,23 +318,24 @@ class AgarEnv(gym.Env):
         count_cells, cell_coordinate_x, cell_coordinate_y, size = self.get_closest_cell(player, curr_player_coords)
         food_coordinate_x, food_coordinate_y = self.get_closest_food(food, curr_player_coords)
         virus_coordinate_x, virus_coordinate_y = self.get_closest_virus(virus, curr_player_coords)
-        if ejected is not None:
+        if ejected is not None and len(ejected[0]) > 1:
 
-            if player_coord_x is not None and player_coord_y is not None :
-                return player_size, player_coord_x, player_coord_y, count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y,  ejected[2], ejected[3]
+            if curr_player_coords is not None :
+                return player_size, curr_player_coords[0], curr_player_coords[1], count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y,  ejected[0][2], ejected[0][3]
             else:
-                return player_size, player_coord_x, player_coord_y, count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, ejected[2], ejected[3]
+                return player_size, curr_player_coords[0], curr_player_coords[1], count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, ejected[0][2], ejected[0][3]
         else:
-            if player_coord_x is not None and player_coord_y is not None:
-                return player_size, player_coord_x, player_coord_y, count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, player_coord_x, player_coord_y
+            if curr_player_coords is not None :
+                return player_size, curr_player_coords[0], curr_player_coords[1], count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, curr_player_coords[0], curr_player_coords[1]
             else:
-                return player_size, player_coord_x, player_coord_y, count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, player_coord_x, player_coord_y
+                return player_size, curr_player_coords[0], curr_player_coords[1], count_cells, cell_coordinate_x, cell_coordinate_y, size, food_coordinate_x, food_coordinate_y, virus_coordinate_x, virus_coordinate_y, curr_player_coords[0], curr_player_coords[1]
 
     def get_current_player(self, players):
         for player in players:
             player = player[0]
             if int(player[9]) == 1:
                 #return absolute coordinates
+                
                 return player[2], player[4], player[5]
         return None, None, None
             
