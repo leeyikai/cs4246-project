@@ -25,7 +25,7 @@ class AgarEnv(gym.Env):
         # factors for reward
         self.massRewardCoeff = 0.001  # Multiplied by mass
         self.killRewardCoeff = 10 # Multiplied by size of blob killed
-        self.consumptionRewardCoeff = 0.1 # Multiplied by size of non enemy blob eaten
+        self.consumptionRewardCoeff = 0.1 
         self.killedPenaltyCoeff = 10 # Negated during reward calc. Multiplied by size of own blob eaten
         self.deadPenalty = 200 # Negated during reward calc. Big boy negative for dying
         self.passivePenalty = 0.01 # Negated during reward calc. Small boy negative for doing nth

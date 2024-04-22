@@ -66,7 +66,7 @@ env.configureRewardCoeffs(
 
 window = None
 playerActionVec = np.zeros((1, 3))
-# env.seed(0)
+env.seed(0)
 
 # USE GPU?
 device = torch.device("cpu")
